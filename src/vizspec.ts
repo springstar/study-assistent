@@ -19,8 +19,8 @@ const SOLIDS: SolidKind[] = ["cube", "pyramid", "prism", "sphere"];
 const PROMPTS: Record<string, string> = {
   数学: `判断这道数学题是否适合几何可视化，输出严格 JSON（无 markdown、无多余文字）：
 - 立体几何（正方体/长方体→cube，棱锥→pyramid，棱柱→prism，球→sphere）：{"kind":"solid","solid":"cube|pyramid|prism|sphere"}
-- 含具体一元函数 f(x)（求导/单调/最值/图像）：{"kind":"function","expr":"用 x 写,只用 + - * / ^ 和 sin cos tan sqrt abs exp log,如 x^3-3*x+1","domain":[下界,上界],"tangentAt":可选切点x}
-- 其余：{"kind":"none"}
+- 含**可显式画出的一元函数 f(x)**（求导/单调/最值/图像）：{"kind":"function","expr":"只用变量 x 和 + - * / ^ 及 sin cos tan sqrt abs exp log，如 x^3-3*x+1","domain":[下界,上界],"tangentAt":可选切点x}
+- 其余一律 {"kind":"none"}。**特别注意：新定义题、抽象集合/映射题（如出现 D(x)、f(x_0+d)、未给出具体解析式的 f）一律 none，不要硬凑函数。**
 只输出一个 JSON 对象。`,
   物理: `判断这道物理题是否适合可视化，输出严格 JSON（无 markdown、无多余文字）：
 - 受力分析（斜面/物块/连接体）：{"kind":"freebody","object":"box 或 incline","angle":斜面倾角度数(incline时),"forces":[{"label":"重力 G","angleDeg":270,"mag":0.9},{"label":"支持力 N","angleDeg":...},{"label":"摩擦力 f","angleDeg":...}]}
@@ -35,13 +35,38 @@ const PROMPTS: Record<string, string> = {
 只输出一个 JSON 对象。`,
 };
 
+/** 表达式安全校验：编译后只允许 数字/运算符/括号/单变量(x 或 t)/Math.* 函数。
+ * 挡掉 D(x)、f(x_0+d)、未定义标识符等会在前端求值时抛错的表达式。 */
+function safeExpr(expr: unknown, variable: "x" | "t"): boolean {
+  if (typeof expr !== "string" || !expr.trim()) return false;
+  const js = expr
+    .replace(/\^/g, "**")
+    .replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|pow|PI|E)\b/g, "M.$1");
+  // 允许：数字 . 运算符 括号 逗号 空格 变量 M(占位 Math) 及函数名字母
+  if (!new RegExp(`^[-+*/(),.\\s\\d${variable}M.a-z]+$`).test(js)) return false;
+  // 去掉变量与 Math 函数后不应残留其它字母（即没有 D、f、未知符号）
+  const stripped = js
+    .replace(/M\.(sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|pow|PI|E)/g, "")
+    .replace(new RegExp(variable, "g"), "");
+  if (/[a-zA-Z]/.test(stripped)) return false;
+  try {
+    // 求值时把占位 M 还原成 Math
+    const f = new Function("M", variable, `return (${js});`) as (m: typeof Math, v: number) => number;
+    return Number.isFinite(f(Math, 1)) || Number.isFinite(f(Math, 2)); // 至少一个采样点有限
+  } catch {
+    return false;
+  }
+}
+
 function valid(o: any): o is Spec {
   switch (o?.kind) {
     case "solid":
       return SOLIDS.includes(o.solid);
     case "function":
+      return safeExpr(o.expr, "x") && Array.isArray(o.domain) && o.domain.length === 2 &&
+        o.domain.every((n: any) => typeof n === "number");
     case "motion":
-      return typeof o.expr === "string" && Array.isArray(o.domain) && o.domain.length === 2 &&
+      return safeExpr(o.expr, "t") && Array.isArray(o.domain) && o.domain.length === 2 &&
         o.domain.every((n: any) => typeof n === "number");
     case "freebody":
       return (o.object === "box" || o.object === "incline") && Array.isArray(o.forces) && o.forces.length > 0 &&

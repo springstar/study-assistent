@@ -6,17 +6,9 @@ import { createTutor, ask, loadImage } from "./tutor.ts";
 import { evaluate, type Turn, type Verdict } from "./evaluator.ts";
 import { sm2, MASTERED_INTERVAL } from "./sm2.ts";
 import { resolveSubject, DEFAULT_SUBJECT } from "./subjects.ts";
+import { toQuality } from "./archive.ts";
 
 const UNDERSTOOD_CONFIDENCE = 0.7;
-
-/** Evaluator 判定 → SM-2 质量分（0..5）。由裁判判定，不让学生自评，防作弊 */
-function toQuality(v: Verdict | null): number {
-  if (!v) return 2; // 没产生有效判定（直接结束）
-  if (!v.understood) return v.confidence >= 0.4 ? 2 : 1;
-  if (v.confidence >= 0.85) return 5;
-  if (v.confidence >= UNDERSTOOD_CONFIDENCE) return 4;
-  return 3;
-}
 
 type Outcome = "graded" | "skip" | "quit";
 
@@ -38,7 +30,7 @@ async function reviewOne(rl: readline.Interface, db: any, m: any): Promise<Outco
 
   process.stdout.write("\n老师：");
   try {
-    const first = await ask(tutor, seed, images);
+    const first = await ask(tutor, seed, { images, onDelta: (d) => process.stdout.write(d) });
     transcript.push({ role: "assistant", content: first });
   } catch (e) {
     console.log(`\n⚠ 开场失败：${(e as Error).message}　跳过本题。`);
@@ -59,7 +51,7 @@ async function reviewOne(rl: readline.Interface, db: any, m: any): Promise<Outco
     process.stdout.write("\n老师：");
     let reply: string;
     try {
-      reply = await ask(tutor, promptText);
+      reply = await ask(tutor, promptText, { onDelta: (d) => process.stdout.write(d) });
     } catch (e) {
       console.log(`\n⚠ 出错：${(e as Error).message}　请重发刚才那句。`);
       continue;

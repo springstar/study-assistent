@@ -29,71 +29,72 @@ export function FunctionPlot({
   yLabel?: string;
   color?: string;
 }) {
-  const { curve, tangent, box } = useMemo(() => {
+  const { curve, tangent, axes, labels } = useMemo(() => {
     const f = compile(expr);
     const [a, b] = domain;
     const N = 240;
-    const curve: V3[] = [];
+    const raw: [number, number][] = [];
     let minY = Infinity;
     let maxY = -Infinity;
     for (let i = 0; i <= N; i++) {
       const x = a + ((b - a) * i) / N;
       const y = f(x);
       if (Number.isFinite(y)) {
-        curve.push([x, y, 0]);
+        raw.push([x, y]);
         if (y < minY) minY = y;
         if (y > maxY) maxY = y;
       }
     }
-    let tangent: V3[] | null = null;
-    if (tangentAt !== undefined) {
-      const h = 1e-4;
-      const m = (f(tangentAt + h) - f(tangentAt - h)) / (2 * h);
-      const y0 = f(tangentAt);
-      tangent = [
-        [a, y0 + m * (a - tangentAt), 0],
-        [b, y0 + m * (b - tangentAt), 0],
-      ];
-    }
-    // 取景范围：把坐标原点(0,0)纳入，便于显示坐标轴
     if (!Number.isFinite(minY)) {
       minY = 0;
       maxY = 1;
     }
-    const box = { minX: Math.min(a, 0), maxX: Math.max(b, 0), minY: Math.min(minY, 0), maxY: Math.max(maxY, 0) };
-    return { curve, tangent, box };
+    // x/y 各自独立映射到 [-V,V]，解决 x³ 等 y 量级远大于 x 时被压成竖线的问题
+    const V = 5;
+    const x0 = Math.min(a, 0), x1 = Math.max(b, 0);
+    const y0 = Math.min(minY, 0), y1 = Math.max(maxY, 0);
+    const mapX = (x: number) => ((x - x0) / (x1 - x0 || 1)) * 2 * V - V;
+    const mapY = (y: number) => ((y - y0) / (y1 - y0 || 1)) * 2 * V - V;
+    const curve: V3[] = raw.map(([x, y]) => [mapX(x), mapY(y), 0]);
+
+    let tangent: V3[] | null = null;
+    if (tangentAt !== undefined) {
+      const h = 1e-4;
+      const m = (f(tangentAt + h) - f(tangentAt - h)) / (2 * h);
+      const yt = f(tangentAt);
+      tangent = [
+        [mapX(a), mapY(yt + m * (a - tangentAt)), 0],
+        [mapX(b), mapY(yt + m * (b - tangentAt)), 0],
+      ];
+    }
+    const axes = { x0: mapX(x0), x1: mapX(x1), y0: mapY(y0), y1: mapY(y1), zX: mapX(0), zY: mapY(0) };
+    const labels = { xEnd: mapX(x1), yEnd: mapY(y1), tx: tangentAt !== undefined ? mapX(tangentAt) : 0 };
+    return { curve, tangent, axes, labels };
   }, [expr, domain, tangentAt]);
 
-  const cx = (box.minX + box.maxX) / 2;
-  const cy = (box.minY + box.maxY) / 2;
-  const spanX = box.maxX - box.minX || 1;
-  const spanY = box.maxY - box.minY || 1;
-  // 自动缩放以铺满画布（留 15% 边距）；画布按典型舞台尺寸估算
-  const zoom = 0.85 * Math.min(640 / spanX, 660 / spanY);
-
   return (
-    <Canvas orthographic camera={{ position: [cx, cy, 10], zoom }}>
+    <Canvas orthographic camera={{ position: [0, 0, 10], zoom: 56 }}>
       <color attach="background" args={["#fafafa"]} />
       {/* 坐标轴 */}
-      <Line points={[[box.minX, 0, 0], [box.maxX, 0, 0]]} color="#999" lineWidth={1} />
-      <Line points={[[0, box.minY, 0], [0, box.maxY, 0]]} color="#999" lineWidth={1} />
+      <Line points={[[axes.x0, axes.zY, 0], [axes.x1, axes.zY, 0]]} color="#999" lineWidth={1} />
+      <Line points={[[axes.zX, axes.y0, 0], [axes.zX, axes.y1, 0]]} color="#999" lineWidth={1} />
       {/* 函数曲线 */}
       <Line points={curve} color={color} lineWidth={2.5} />
       {/* 轴标签 */}
       {xLabel && (
-        <Html position={[box.maxX, 0, 0]} center>
+        <Html position={[labels.xEnd, axes.zY, 0]} center>
           <span style={{ color: "#666", fontSize: 12 }}>{xLabel}</span>
         </Html>
       )}
       {yLabel && (
-        <Html position={[0, box.maxY, 0]} center>
+        <Html position={[axes.zX, labels.yEnd, 0]} center>
           <span style={{ color: "#666", fontSize: 12 }}>{yLabel}</span>
         </Html>
       )}
       {/* 切线 */}
       {tangent && <Line points={tangent} color="#c0392b" lineWidth={1.5} dashed dashSize={0.15} gapSize={0.1} />}
       {tangentAt !== undefined && (
-        <Html position={[tangentAt, 0, 0]} center>
+        <Html position={[labels.tx, axes.zY, 0]} center>
           <span style={{ color: "#c0392b", fontSize: 12, whiteSpace: "nowrap" }}>x={tangentAt}</span>
         </Html>
       )}

@@ -6,11 +6,12 @@ import { openDb, createSession, saveTurn, saveMistake, getSimilar } from "./db.t
 import { createTutor, ask, loadImage } from "./tutor.ts";
 import { evaluate, type Turn } from "./evaluator.ts";
 import { genSpec } from "./vizspec.ts";
-import { completeWithRetry } from "./llm.ts";
-import { EVAL_MODEL, model, ROOT } from "./config.ts";
+import { summarizeMistake } from "./archive.ts";
+import { ROOT } from "./config.ts";
 import { SUBJECTS, DEFAULT_SUBJECT, resolveSubject, supportedSubjects } from "./subjects.ts";
 
 const UNDERSTOOD_CONFIDENCE = 0.7;
+const out = (d: string) => process.stdout.write(d); // 流式输出到终端
 
 async function readProblem(rl: readline.Interface): Promise<{ text: string; imagePath: string | null }> {
   console.log("粘贴题目（可多行）。拍照题目用 /img <图片路径> 附加。单独一行 /go 结束：");
@@ -32,37 +33,6 @@ async function readProblem(rl: readline.Interface): Promise<{ text: string; imag
     lines.push(line);
   }
   return { text: lines.join("\n").trim(), imagePath };
-}
-
-/** 用一次独立 LLM 调用把对话提炼成错题字段。用标签行格式而非 JSON——数学/LaTeX 内容会破坏 JSON 转义 */
-async function summarizeMistake(transcript: Turn[], subject: string) {
-  const types = SUBJECTS[subject].problemTypes.join("/");
-  const dialog = transcript.map((t) => `${t.role === "student" ? "学生" : "老师"}：${t.content}`).join("\n");
-  const context = {
-    systemPrompt:
-      `把以下${subject}辅导对话提炼成错题档案。严格按下面 6 行格式输出，每项一行，冒号后写内容，不要 markdown、不要多余文字：\n` +
-      `核心能力: (抽象/逻辑推理/建模/运算 之一)\n` +
-      `题型: (${types} 之一)\n` +
-      `卡点: (学生具体卡在哪个环节)\n` +
-      `概述: (题目与关键难点，一句话)\n` +
-      `关键步骤: (解题骨架，关键转折，一行写完)\n` +
-      `解法: (最终解法要点，一行写完)`,
-    messages: [{ role: "user" as const, content: dialog, timestamp: Date.now() }],
-  };
-  const res = await completeWithRetry(model(EVAL_MODEL), context);
-  const text = (res.content as any[]).filter((c) => c.type === "text").map((c) => c.text).join("");
-  const grab = (label: string): string => {
-    const m = text.match(new RegExp(`^\\s*${label}\\s*[:：]\\s*(.+)$`, "m"));
-    return m ? m[1].trim() : "";
-  };
-  return {
-    coreAbility: grab("核心能力"),
-    problemType: grab("题型"),
-    blockPoint: grab("卡点"),
-    summary: grab("概述"),
-    keySteps: grab("关键步骤"),
-    solution: grab("解法"),
-  };
 }
 
 async function main() {
@@ -103,7 +73,7 @@ async function main() {
   }
   let firstReply: string;
   try {
-    firstReply = await ask(tutor, problem || "请看图片里的题目。", images);
+    firstReply = await ask(tutor, problem || "请看图片里的题目。", { images, onDelta: out });
   } catch (e) {
     console.error(`\n开场失败：${(e as Error).message}\n请检查网络/服务后重试。`);
     db.close();
@@ -143,7 +113,7 @@ async function main() {
     if (input === "/similar") {
       process.stdout.write("\n老师：");
       try {
-        const reply = await ask(tutor, "学生确认已理解，请出一道同型巩固题，仍然不要直接给解答。");
+        const reply = await ask(tutor, "学生确认已理解，请出一道同型巩固题，仍然不要直接给解答。", { onDelta: out });
         saveTurn(db, sessionId, "assistant", reply);
         transcript.push({ role: "assistant", content: reply });
       } catch (e) {
@@ -161,7 +131,7 @@ async function main() {
     process.stdout.write("\n老师：");
     let reply: string;
     try {
-      reply = await ask(tutor, promptText);
+      reply = await ask(tutor, promptText, { onDelta: out });
     } catch (e) {
       // 网络/服务出错：不崩、不丢上下文，提示学生重发这一句
       console.log(`\n⚠ 出错：${(e as Error).message}　请重发刚才那句。`);

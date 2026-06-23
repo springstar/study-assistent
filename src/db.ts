@@ -162,6 +162,25 @@ export type Stats = {
   byAbility: { core_ability: string; count: number }[];
 };
 
+/** 会话列表（含回合数、错题数、最后活动时间），供历史页 */
+export function listSessions(db: DatabaseSync): any[] {
+  return db
+    .prepare(
+      `SELECT s.id, s.subject, s.problem_text, s.problem_image_path, s.created_at,
+              (SELECT COUNT(*) FROM turns t WHERE t.session_id = s.id) AS turn_count,
+              (SELECT COUNT(*) FROM mistakes m WHERE m.session_id = s.id) AS mistake_count
+         FROM sessions s ORDER BY s.created_at DESC`,
+    )
+    .all();
+}
+
+/** 某会话的全部回合（按时间） */
+export function getTurns(db: DatabaseSync, sessionId: string): any[] {
+  return db
+    .prepare("SELECT role, content, hint_level, created_at FROM turns WHERE session_id = ? ORDER BY created_at ASC")
+    .all(sessionId);
+}
+
 /** 错题库聚合统计 */
 export function getStats(db: DatabaseSync, now = new Date()): Stats {
   const one = (sql: string, ...p: any[]) => (db.prepare(sql).get(...p) as any).c as number;

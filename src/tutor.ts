@@ -32,29 +32,38 @@ export function textOf(msg: AgentMessage | undefined): string {
     .join("");
 }
 
-/** 按科目加载对应 skill 作 systemPrompt 建 Tutor */
+/** 按科目加载对应 skill 作 systemPrompt 建 Tutor。流式输出不在这里绑定——由 ask 的 onDelta 注入。 */
 export function createTutor(subject: string): Agent {
   const cfg = SUBJECTS[subject];
   if (!cfg) throw new Error(`未支持的科目：${subject}`);
   const systemPrompt = readFileSync(join(ROOT, "skills", cfg.skillDir, "SKILL.md"), "utf8");
-  const agent = new Agent({
+  return new Agent({
     initialState: { systemPrompt, model: model(TUTOR_MODEL) },
     getApiKey,
   });
-  // 流式打印助理输出
-  agent.subscribe((event) => {
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-      process.stdout.write(event.assistantMessageEvent.delta);
-    }
-  });
-  return agent;
 }
 
+export type AskOpts = { images?: ImageContent[]; onDelta?: (delta: string) => void };
+
 /** 发一条 prompt（可带图片），等 Tutor 跑完，返回这一轮的助理回复全文。
+ * onDelta 存在时本次调用临时订阅 text_delta 推给它（CLI→stdout、服务→SSE）。
  * 出错（网络/服务）时回滚这一轮并抛出，便于调用方提示重试而不污染对话。 */
-export async function ask(agent: Agent, text: string, images?: ImageContent[]): Promise<string> {
+export async function ask(agent: Agent, text: string, opts: AskOpts = {}): Promise<string> {
+  const { images, onDelta } = opts;
   const before = agent.state.messages.length;
-  await agent.prompt(text, images);
+  let unsub: (() => void) | undefined;
+  if (onDelta) {
+    unsub = agent.subscribe((event) => {
+      if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+        onDelta(event.assistantMessageEvent.delta);
+      }
+    });
+  }
+  try {
+    await agent.prompt(text, images);
+  } finally {
+    unsub?.();
+  }
   const last = agent.state.messages.at(-1);
   const reply = textOf(last);
   if ((last as any)?.stopReason === "error" || !reply.trim()) {
