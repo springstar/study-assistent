@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MessageBubble } from "../components/MessageBubble.tsx";
 import * as api from "../api.ts";
 
 type Filter = { type?: string; due?: boolean; unmastered?: boolean };
@@ -53,6 +54,12 @@ export function Mistakes() {
               {m.mastered ? <span className="mastered">★掌握</span> : null}
               <span className="due">到期 {m.review_due_at?.slice(0, 10) ?? "—"} · reps{m.reps}</span>
             </div>
+            {(m.problem_text || m.problem_image_path) && (
+              <div className="mproblem">
+                <span className="mlabel">原题</span>
+                <MessageBubble role="assistant" text={m.problem_text || "[图片题目]"} />
+              </div>
+            )}
             <div className="mblock">卡点：{m.block_point}</div>
             <div className="msum">{m.summary}</div>
           </div>

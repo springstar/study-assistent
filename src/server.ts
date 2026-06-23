@@ -6,7 +6,7 @@ import { join, extname } from "node:path";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import {
   openDb, createSession, saveTurn, saveMistake, getSimilar,
-  getStats, getMistakes, getDueMistakes, updateSchedule, listSessions, getTurns,
+  getStats, getMistakes, getDueMistakes, updateSchedule, listSessions, getTurns, setSessionProblem,
 } from "./db.ts";
 import { createTutor, ask } from "./tutor.ts";
 import { evaluate, type Turn, type Verdict } from "./evaluator.ts";
@@ -78,10 +78,15 @@ async function streamTurn(
   const promptText =
     sess.pendingGaps.length && opts.runEval && sess.started ? text + GAP_NOTE(sess.pendingGaps) : text;
   try {
+    const isFirstTurn = !sess.started;
     const reply = await ask(sess.agent, promptText, { images, onDelta: (d) => sse(res, "delta", { text: d }) });
     if (opts.saveStudent) {
       if (sess.persist) saveTurn(db, sess.sessionId, "student", studentText);
       sess.transcript.push({ role: "student", content: studentText });
+    }
+    // 首轮回填题目到 session（会话先建、题目首轮才到）
+    if (isFirstTurn && sess.persist && !sess.isReview) {
+      setSessionProblem(db, sess.sessionId, text, images ? "[图片]" : null);
     }
     if (sess.persist) saveTurn(db, sess.sessionId, "assistant", reply);
     sess.transcript.push({ role: "assistant", content: reply });

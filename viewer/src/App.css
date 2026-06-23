@@ -168,6 +168,22 @@ html, body, #root {
   font-size: 13px;
   margin-bottom: 4px;
 }
+.mproblem {
+  margin: 4px 0 8px;
+}
+.mproblem .mlabel {
+  font-size: 11px;
+  color: #6b7488;
+  margin-right: 6px;
+}
+/* 错题卡里的原题：去掉气泡外观，融入卡片 */
+.mproblem .bubble {
+  display: inline;
+  background: none;
+  padding: 0;
+  color: #c2cad8;
+  max-width: none;
+}
 .msum {
   color: #c2cad8;
   font-size: 14px;

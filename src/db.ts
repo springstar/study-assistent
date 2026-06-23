@@ -71,6 +71,20 @@ export function createSession(
   return id;
 }
 
+/** 回填题目（Web 模式下会话先建、题目首轮才到） */
+export function setSessionProblem(
+  db: DatabaseSync,
+  sessionId: string,
+  problemText: string,
+  imagePath: string | null = null,
+): void {
+  db.prepare("UPDATE sessions SET problem_text = ?, problem_image_path = ? WHERE id = ?").run(
+    problemText,
+    imagePath,
+    sessionId,
+  );
+}
+
 export function saveTurn(
   db: DatabaseSync,
   sessionId: string,
@@ -148,7 +162,7 @@ export function getMistakes(db: DatabaseSync, f: MistakeFilter = {}, now = new D
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   return db
     .prepare(
-      `SELECT m.*, s.subject FROM mistakes m JOIN sessions s ON s.id = m.session_id
+      `SELECT m.*, s.subject, s.problem_text, s.problem_image_path FROM mistakes m JOIN sessions s ON s.id = m.session_id
        ${clause} ORDER BY m.review_due_at ASC`,
     )
     .all(...params);
