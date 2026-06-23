@@ -15,7 +15,6 @@ if (!process.env.ANTHROPIC_API_KEY && existsSync(ENV_FILE)) {
 export const TUTOR_MODEL = "claude-sonnet-4-5-20250929";
 export const EVAL_MODEL = "claude-haiku-4-5-20251001"; // 每轮调=高频，用便宜模型
 export const DB_PATH = join(ROOT, "data.db");
-export const SKILL_PATH = join(ROOT, "skills", "math-tutor", "SKILL.md");
 
 export const getApiKey = (_provider: string) => process.env.ANTHROPIC_API_KEY;
 

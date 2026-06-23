@@ -53,11 +53,12 @@ mistakes(id, session_id, core_ability, problem_type, block_point,
 - `mistakes.block_point`（学生卡在哪个环节）是错题库灵魂——复习按**卡点**优先，不按知识点。
 - `review_due_at`：间隔重复（SM-2 简版），否则错题库只是堆积。
 
-## Skills
+## Skills 与多科目
 
 - `skills/math-tutor/SKILL.md` — 数学引导，锚定 2026 新课标一卷真实题型（新定义压轴、多想少算、文化情境数列等）。
-
-后续扩科目（物理/英语等）各加一个 skill，复用同一引导状态机。
+- `src/subjects.ts` 是科目注册表（单一事实源）：`{skillDir, problemTypes, viz}`。tutor 按科目加载 `skills/<skillDir>/SKILL.md`；`viz` 门控 genSpec；`problemTypes` 喂给错题提炼 prompt。
+- **加新科目 = 注册表加一条 + 放 `skills/<skillDir>/SKILL.md`**（锚定该科真题）。未支持的科目输入会回退到 `DEFAULT_SUBJECT` 并提示。
+- 当前只有数学；物理/英语等后续按上面方式扩，复用同一引导状态机。
 
 ## 实现顺序与进度
 

@@ -4,6 +4,7 @@ import { openDb, createSession, saveTurn, saveMistake, getSimilar, getDueMistake
 import { parseVerdict } from "./evaluator.ts";
 import { sm2, FRESH } from "./sm2.ts";
 import { retry } from "./llm.ts";
+import { resolveSubject, SUBJECTS, DEFAULT_SUBJECT } from "./subjects.ts";
 
 test("db: session/turn/mistake 往返 + getSimilar 按题型过滤", () => {
   const db = openDb(":memory:");
@@ -156,4 +157,15 @@ test("retry: 每次都抛 → 抛最后的错误", async () => {
     ),
     /一直挂/,
   );
+});
+
+test("subjects: resolveSubject 归一 + 注册表完整", () => {
+  assert.equal(resolveSubject("数学"), "数学");
+  assert.equal(resolveSubject(" 数学 "), "数学"); // trim
+  assert.equal(resolveSubject("物理"), null); // 未支持
+  assert.equal(DEFAULT_SUBJECT, "数学");
+  const m = SUBJECTS["数学"];
+  assert.equal(m.skillDir, "math-tutor");
+  assert.ok(m.viz);
+  assert.ok(m.problemTypes.includes("导数"));
 });

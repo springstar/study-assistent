@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
-import { extname } from "node:path";
+import { extname, join } from "node:path";
 import { Agent, type AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent } from "@earendil-works/pi-ai";
-import { SKILL_PATH, TUTOR_MODEL, model, getApiKey } from "./config.ts";
+import { TUTOR_MODEL, ROOT, model, getApiKey } from "./config.ts";
+import { SUBJECTS } from "./subjects.ts";
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -31,8 +32,11 @@ export function textOf(msg: AgentMessage | undefined): string {
     .join("");
 }
 
-export function createTutor(): Agent {
-  const systemPrompt = readFileSync(SKILL_PATH, "utf8");
+/** 按科目加载对应 skill 作 systemPrompt 建 Tutor */
+export function createTutor(subject: string): Agent {
+  const cfg = SUBJECTS[subject];
+  if (!cfg) throw new Error(`未支持的科目：${subject}`);
+  const systemPrompt = readFileSync(join(ROOT, "skills", cfg.skillDir, "SKILL.md"), "utf8");
   const agent = new Agent({
     initialState: { systemPrompt, model: model(TUTOR_MODEL) },
     getApiKey,

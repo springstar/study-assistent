@@ -5,6 +5,7 @@ import { openDb, getDueMistakes, updateSchedule } from "./db.ts";
 import { createTutor, ask, loadImage } from "./tutor.ts";
 import { evaluate, type Turn, type Verdict } from "./evaluator.ts";
 import { sm2, MASTERED_INTERVAL } from "./sm2.ts";
+import { resolveSubject, DEFAULT_SUBJECT } from "./subjects.ts";
 
 const UNDERSTOOD_CONFIDENCE = 0.7;
 
@@ -25,7 +26,7 @@ async function reviewOne(rl: readline.Interface, db: any, m: any): Promise<Outco
   console.log(`上次卡点：${m.block_point}`);
   console.log("(/skip 跳过本题  /done 结束并评分  /quit 退出复习)");
 
-  const tutor = createTutor();
+  const tutor = createTutor(resolveSubject(m.subject) ?? DEFAULT_SUBJECT);
   const transcript: Turn[] = [];
   let pendingGaps: string[] = [];
   let lastVerdict: Verdict | null = null;
