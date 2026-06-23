@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openDb, createSession, saveTurn, saveMistake, getSimilar, getDueMistakes, updateSchedule } from "./db.ts";
+import { openDb, createSession, saveTurn, saveMistake, getSimilar, getDueMistakes, updateSchedule, getMistakes, getStats } from "./db.ts";
 import { parseVerdict } from "./evaluator.ts";
 import { sm2, FRESH } from "./sm2.ts";
 
@@ -91,5 +91,29 @@ test("db: getDueMistakes 只取到期未掌握，updateSchedule 改期", () => {
   const row = db.prepare("SELECT ef, reps, interval_days FROM mistakes WHERE id = ?").get(id) as any;
   assert.equal(row.reps, 1);
   assert.equal(row.interval_days, 1);
+  db.close();
+});
+
+test("db: getMistakes 过滤 + getStats 聚合", () => {
+  const db = openDb(":memory:");
+  const sid = createSession(db, "数学", "题");
+  const mk = (type: string, ability: string) =>
+    saveMistake(db, { sessionId: sid, coreAbility: ability, problemType: type, blockPoint: "x", summary: "s", keySteps: "k", solution: "v" });
+  mk("导数", "运算");
+  mk("导数", "运算");
+  mk("数列", "建模");
+  // 掌握其中一个导数
+  const firstId = (db.prepare("SELECT id FROM mistakes WHERE problem_type='导数' LIMIT 1").get() as any).id;
+  updateSchedule(db, firstId, { ef: 2.5, reps: 5, interval: 30 }, new Date(Date.now() + 30 * 86400000), true);
+
+  assert.equal(getMistakes(db, { type: "导数" }).length, 2);
+  assert.equal(getMistakes(db, { unmasteredOnly: true }).length, 2); // 1导数+1数列未掌握
+
+  const s = getStats(db);
+  assert.equal(s.total, 3);
+  assert.equal(s.mastered, 1);
+  const dao = s.byType.find((t) => t.problem_type === "导数")!;
+  assert.equal(dao.count, 2);
+  assert.equal(dao.unmastered, 1);
   db.close();
 });

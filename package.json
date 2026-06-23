@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node --experimental-strip-types --experimental-sqlite src/cli.ts",
     "review": "node --experimental-strip-types --experimental-sqlite src/review.ts",
+    "mistakes": "node --experimental-strip-types --experimental-sqlite src/mistakes.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --experimental-sqlite --test src/*.test.ts"
   },

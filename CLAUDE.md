@@ -77,6 +77,7 @@ src/sm2.ts        标准 SM-2 纯函数
 src/vizspec.ts    genSpec(题目)→Spec|null：LLM 判断立体几何→solid/函数→function/其余→none
 src/cli.ts        npm start —— 解新题，引导循环 + gaps 回注 + 错题归档
 src/review.ts     npm run review —— 复习到期错题，verdict→quality→SM-2 重排
+src/mistakes.ts   npm run mistakes —— 错题库统计概览 + 列表，过滤 --type/--due/--unmastered
 src/db.test.ts    node:test 自检（db/evaluator/sm2）
 viewer/           独立可视化子应用（Vite+React+R3F）。spec 驱动：立体几何 3D（OrbitControls 旋转 + Edges + Html 顶点标注）/ 函数图（采样曲线 + 切线）。npm run dev。
                   注：标注用 drei <Html> 不用 <Text>——<Text>(troika) 异步加载字体会让 headless/离线渲染整块 Suspense 挂起。

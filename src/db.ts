@@ -129,3 +129,57 @@ export function updateSchedule(
     "UPDATE mistakes SET ef = ?, reps = ?, interval_days = ?, review_due_at = ?, mastered = ? WHERE id = ?",
   ).run(s.ef, s.reps, s.interval, dueAt.toISOString(), mastered ? 1 : 0, id);
 }
+
+export type MistakeFilter = { type?: string; unmasteredOnly?: boolean; dueOnly?: boolean };
+
+/** 错题列表，支持按题型/未掌握/到期过滤，连原题一起取 */
+export function getMistakes(db: DatabaseSync, f: MistakeFilter = {}, now = new Date()): any[] {
+  const where: string[] = [];
+  const params: any[] = [];
+  if (f.type) {
+    where.push("m.problem_type = ?");
+    params.push(f.type);
+  }
+  if (f.unmasteredOnly) where.push("m.mastered = 0");
+  if (f.dueOnly) {
+    where.push("m.mastered = 0 AND m.review_due_at IS NOT NULL AND m.review_due_at <= ?");
+    params.push(now.toISOString());
+  }
+  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  return db
+    .prepare(
+      `SELECT m.*, s.subject FROM mistakes m JOIN sessions s ON s.id = m.session_id
+       ${clause} ORDER BY m.review_due_at ASC`,
+    )
+    .all(...params);
+}
+
+export type Stats = {
+  total: number;
+  mastered: number;
+  dueNow: number;
+  byType: { problem_type: string; count: number; unmastered: number }[];
+  byAbility: { core_ability: string; count: number }[];
+};
+
+/** 错题库聚合统计 */
+export function getStats(db: DatabaseSync, now = new Date()): Stats {
+  const one = (sql: string, ...p: any[]) => (db.prepare(sql).get(...p) as any).c as number;
+  return {
+    total: one("SELECT COUNT(*) c FROM mistakes"),
+    mastered: one("SELECT COUNT(*) c FROM mistakes WHERE mastered = 1"),
+    dueNow: one(
+      "SELECT COUNT(*) c FROM mistakes WHERE mastered = 0 AND review_due_at IS NOT NULL AND review_due_at <= ?",
+      now.toISOString(),
+    ),
+    byType: db
+      .prepare(
+        `SELECT problem_type, COUNT(*) count, SUM(CASE WHEN mastered = 0 THEN 1 ELSE 0 END) unmastered
+           FROM mistakes GROUP BY problem_type ORDER BY unmastered DESC, count DESC`,
+      )
+      .all() as any,
+    byAbility: db
+      .prepare("SELECT core_ability, COUNT(*) count FROM mistakes GROUP BY core_ability ORDER BY count DESC")
+      .all() as any,
+  };
+}

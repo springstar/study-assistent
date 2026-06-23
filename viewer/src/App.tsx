@@ -27,14 +27,28 @@ export default function App() {
   const [i, setI] = useState(0);
   const [current, setCurrent] = useState<Spec | null>(null);
 
-  // Tutor 生成的当前题目 spec（CLI 写到 viewer/public/spec.json）
+  // 轮询 Tutor 写的 spec.json，对话出新几何/函数题时自动跟随
   useEffect(() => {
-    fetch("/spec.json")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((s) => {
-        if (isSpec(s)) setCurrent(s);
-      })
-      .catch(() => {});
+    let last = "";
+    const poll = async () => {
+      try {
+        const r = await fetch("/spec.json", { cache: "no-store" });
+        if (!r.ok) return;
+        const s = await r.json();
+        if (!isSpec(s)) return;
+        const j = JSON.stringify(s);
+        if (j !== last) {
+          last = j;
+          setCurrent(s);
+          setI(0); // 新题目自动切到"当前题目"
+        }
+      } catch {
+        // spec.json 不存在/网络抖动，忽略
+      }
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
   }, []);
 
   const list = current ? [{ name: "📍 当前题目（来自 Tutor）", spec: current }, ...PRESETS] : PRESETS;
@@ -58,7 +72,7 @@ export default function App() {
         <pre className="spec">{JSON.stringify(spec, null, 2)}</pre>
       </aside>
       <main className="stage">
-        <Viz key={`${i}-${current ? "c" : "n"}`} spec={spec} />
+        <Viz key={JSON.stringify(spec)} spec={spec} />
       </main>
     </div>
   );
