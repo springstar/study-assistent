@@ -18,20 +18,32 @@ export function FunctionPlot({
   expr,
   domain,
   tangentAt,
+  xLabel,
+  yLabel,
+  color = "#2c6fbb",
 }: {
   expr: string;
   domain: [number, number];
   tangentAt?: number;
+  xLabel?: string;
+  yLabel?: string;
+  color?: string;
 }) {
-  const { curve, tangent } = useMemo(() => {
+  const { curve, tangent, box } = useMemo(() => {
     const f = compile(expr);
     const [a, b] = domain;
     const N = 240;
     const curve: V3[] = [];
+    let minY = Infinity;
+    let maxY = -Infinity;
     for (let i = 0; i <= N; i++) {
       const x = a + ((b - a) * i) / N;
       const y = f(x);
-      if (Number.isFinite(y)) curve.push([x, y, 0]);
+      if (Number.isFinite(y)) {
+        curve.push([x, y, 0]);
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
     let tangent: V3[] | null = null;
     if (tangentAt !== undefined) {
@@ -43,20 +55,41 @@ export function FunctionPlot({
         [b, y0 + m * (b - tangentAt), 0],
       ];
     }
-    return { curve, tangent };
+    // 取景范围：把坐标原点(0,0)纳入，便于显示坐标轴
+    if (!Number.isFinite(minY)) {
+      minY = 0;
+      maxY = 1;
+    }
+    const box = { minX: Math.min(a, 0), maxX: Math.max(b, 0), minY: Math.min(minY, 0), maxY: Math.max(maxY, 0) };
+    return { curve, tangent, box };
   }, [expr, domain, tangentAt]);
 
-  const [a, b] = domain;
-  const span = b - a;
+  const cx = (box.minX + box.maxX) / 2;
+  const cy = (box.minY + box.maxY) / 2;
+  const spanX = box.maxX - box.minX || 1;
+  const spanY = box.maxY - box.minY || 1;
+  // 自动缩放以铺满画布（留 15% 边距）；画布按典型舞台尺寸估算
+  const zoom = 0.85 * Math.min(640 / spanX, 660 / spanY);
 
   return (
-    <Canvas orthographic camera={{ position: [0, 0, 10], zoom: 320 / span }}>
+    <Canvas orthographic camera={{ position: [cx, cy, 10], zoom }}>
       <color attach="background" args={["#fafafa"]} />
       {/* 坐标轴 */}
-      <Line points={[[a, 0, 0], [b, 0, 0]]} color="#999" lineWidth={1} />
-      <Line points={[[0, -span / 2, 0], [0, span / 2, 0]]} color="#999" lineWidth={1} />
+      <Line points={[[box.minX, 0, 0], [box.maxX, 0, 0]]} color="#999" lineWidth={1} />
+      <Line points={[[0, box.minY, 0], [0, box.maxY, 0]]} color="#999" lineWidth={1} />
       {/* 函数曲线 */}
-      <Line points={curve} color="#2c6fbb" lineWidth={2.5} />
+      <Line points={curve} color={color} lineWidth={2.5} />
+      {/* 轴标签 */}
+      {xLabel && (
+        <Html position={[box.maxX, 0, 0]} center>
+          <span style={{ color: "#666", fontSize: 12 }}>{xLabel}</span>
+        </Html>
+      )}
+      {yLabel && (
+        <Html position={[0, box.maxY, 0]} center>
+          <span style={{ color: "#666", fontSize: 12 }}>{yLabel}</span>
+        </Html>
+      )}
       {/* 切线 */}
       {tangent && <Line points={tangent} color="#c0392b" lineWidth={1.5} dashed dashSize={0.15} gapSize={0.1} />}
       {tangentAt !== undefined && (

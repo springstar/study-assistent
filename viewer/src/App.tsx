@@ -16,11 +16,28 @@ const PRESETS: { name: string; spec: Spec }[] = [
     name: "f(x)=sin(x)（函数图）",
     spec: { kind: "function", expr: "sin(x)", domain: [-6.5, 6.5], tangentAt: 0 },
   },
+  {
+    name: "斜面受力分析（物理）",
+    spec: {
+      kind: "freebody",
+      object: "incline",
+      angle: 30,
+      forces: [
+        { label: "重力 G", angleDeg: 270, mag: 1 },
+        { label: "支持力 N", angleDeg: 120, mag: 0.85 },
+        { label: "摩擦力 f", angleDeg: 30, mag: 0.6 },
+      ],
+    },
+  },
+  {
+    name: "匀加速 v-t 图（物理）",
+    spec: { kind: "motion", quantity: "v", expr: "2 + 3*t", domain: [0, 5] },
+  },
 ];
 
 function isSpec(o: unknown): o is Spec {
-  const s = o as Spec;
-  return s?.kind === "solid" || s?.kind === "function";
+  const k = (o as Spec)?.kind;
+  return k === "solid" || k === "function" || k === "freebody" || k === "motion";
 }
 
 export default function App() {

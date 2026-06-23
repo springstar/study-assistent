@@ -171,6 +171,6 @@ test("subjects: resolveSubject 归一 + 注册表完整", () => {
   assert.ok(m.problemTypes.includes("导数"));
   const p = SUBJECTS["物理"];
   assert.equal(p.skillDir, "physics-tutor");
-  assert.equal(p.viz, false);
+  assert.equal(p.viz, true);
   assert.ok(p.problemTypes.includes("电磁感应"));
 });

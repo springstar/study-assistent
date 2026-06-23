@@ -113,13 +113,13 @@ async function main() {
   transcript.push({ role: "assistant", content: firstReply });
   console.log("\n\n（命令：/done 归档退出  /quit 直接退  /similar 出巩固题）\n");
 
-  // 几何/函数题自动生成可视化 spec，写给 viewer（仅支持可视化的科目）
+  // 题目可视化 spec，写给 viewer（仅支持可视化的科目）
   if (subjectCfg.viz) {
-    const spec = await genSpec(problem, images);
+    const spec = await genSpec(problem, subject, images);
     if (spec) {
       const specPath = join(ROOT, "viewer", "public", "spec.json");
       writeFileSync(specPath, JSON.stringify(spec, null, 2));
-      console.log(`📐 已生成可视化（${spec.kind === "solid" ? spec.solid : "函数图"}）。在 viewer 里刷新即可查看。\n`);
+      console.log(`📐 已生成可视化（${spec.kind}）。在 viewer 里刷新即可查看。\n`);
     }
   }
 
