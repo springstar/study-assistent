@@ -30,6 +30,7 @@ type Sess = {
   sessionId: string; // DB session id（复习时为原题会话）
   lastVerdict: Verdict | null;
   started: boolean; // 是否已发过首条（题目）消息
+  specDone: boolean; // 是否已生成过可视化（一次会话最多一次）
 };
 const sessions = new Map<string, Sess>();
 
@@ -91,9 +92,12 @@ async function streamTurn(
       sess.pendingGaps = v.understood ? [] : v.gaps;
       sse(res, "verdict", v);
     }
-    if (opts.runSpec && !sess.isReview && SUBJECTS[sess.subject].viz) {
+    if (opts.runSpec && !sess.specDone && !sess.isReview && SUBJECTS[sess.subject].viz) {
       const spec = await genSpec(text, sess.subject, images);
-      if (spec) sse(res, "spec", spec);
+      if (spec) {
+        sess.specDone = true;
+        sse(res, "spec", spec);
+      }
     }
     sess.started = true;
     sse(res, "done", { reply });
@@ -122,6 +126,7 @@ async function handleSession(res: ServerResponse, body: any) {
     sessionId,
     lastVerdict: null,
     started: false,
+    specDone: false,
   });
   json(res, 200, { sessionId, subject });
 }
@@ -155,6 +160,7 @@ async function handleReviewStart(res: ServerResponse, body: any) {
     sessionId,
     lastVerdict: null,
     started: false,
+    specDone: false,
   });
   const seed = m.problem_text
     ? `这是我之前做错的题，请你引导我重新做一遍（先问我思路，别直接给答案）：\n${m.problem_text}`
@@ -208,10 +214,13 @@ const server = createServer(async (req, res) => {
       const sess = sessions.get(body?.sessionId);
       if (!sess) return json(res, 404, { error: "会话不存在" });
       const isFirst = !sess.started;
-      return streamTurn(res, sess, body?.text || "", imagesFrom(body), {
+      const images = imagesFrom(body);
+      // 图片题首轮是「转写确认」轮，题目未确认，先不画图；之后每轮尝试（specDone 保证只画一次）
+      const runSpec = isFirst ? !images : !sess.specDone;
+      return streamTurn(res, sess, body?.text || "", images, {
         saveStudent: true,
         runEval: !isFirst || sess.transcript.length > 0,
-        runSpec: isFirst,
+        runSpec,
       });
     }
 

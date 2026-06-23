@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Viz } from "../Viz.tsx";
 import { MessageBubble } from "../components/MessageBubble.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
+import { Composer } from "../components/Composer.tsx";
+import { maybeWrapMath } from "../mathInput.ts";
 import type { Spec } from "../spec.ts";
 import * as api from "../api.ts";
 
@@ -58,13 +60,14 @@ export function Chat() {
     const img = image;
     try {
       const sid = await ensureSession();
+      const wrapped = maybeWrapMath(text); // 含数学迹象的转成 $...$ LaTeX 发给老师
       const shown = text || (img ? `[图片] ${img.name}` : "");
-      setMsgs((m) => [...m, { role: "student", text: shown }, { role: "assistant", text: "" }]);
+      setMsgs((m) => [...m, { role: "student", text: wrapped || shown }, { role: "assistant", text: "" }]);
       setInput("");
       setImage(null);
       await api.streamMessage(
         "/api/message",
-        { sessionId: sid, text, imageBase64: img?.base64, imageMime: img?.mime },
+        { sessionId: sid, text: wrapped, imageBase64: img?.base64, imageMime: img?.mime },
         {
           onDelta: appendDelta,
           onVerdict: setVerdict,
@@ -144,44 +147,42 @@ export function Chat() {
           <div ref={endRef} />
         </div>
 
-        <div className="composer">
-          {image && (
-            <div className="attach">📎 {image.name} <button onClick={() => setImage(null)}>移除</button></div>
-          )}
-          <textarea
-            value={input}
-            placeholder="描述你的思路 / 卡在哪…（Enter 发送，Shift+Enter 换行）"
-            disabled={busy}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
-          />
-          <div className="actions">
-            <button onClick={() => send(input)} disabled={busy || (!input.trim() && !image)}>
-              发送
-            </button>
-            <button onClick={() => fileRef.current?.click()} disabled={busy}>
-              📷 拍照题目
-            </button>
-            <button onClick={similar} disabled={busy || !started}>
-              巩固题
-            </button>
-            <button onClick={doArchive} disabled={busy || !started}>
-              归档错题
-            </button>
-          </div>
-        </div>
+        <Composer
+          value={input}
+          onChange={setInput}
+          onSend={() => send(input)}
+          busy={busy}
+          attachment={
+            image && (
+              <div className="attach">
+                📎 {image.name} <button onClick={() => setImage(null)}>移除</button>
+              </div>
+            )
+          }
+          actions={
+            <>
+              <button onClick={() => send(input)} disabled={busy || (!input.trim() && !image)}>
+                发送
+              </button>
+              <button onClick={() => fileRef.current?.click()} disabled={busy}>
+                📷 拍照题目
+              </button>
+              <button onClick={similar} disabled={busy || !started}>
+                巩固题
+              </button>
+              <button onClick={doArchive} disabled={busy || !started}>
+                归档错题
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                style={{ display: "none" }}
+                onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
+              />
+            </>
+          }
+        />
       </div>
 
       {spec && (

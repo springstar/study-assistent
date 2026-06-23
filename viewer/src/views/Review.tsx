@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "../components/MessageBubble.tsx";
+import { Composer } from "../components/Composer.tsx";
+import { maybeWrapMath } from "../mathInput.ts";
 import * as api from "../api.ts";
 
 type Msg = { role: "student" | "assistant" | "system"; text: string };
@@ -47,9 +49,10 @@ export function Review() {
     if (!text.trim() || busy || !active) return;
     setBusy(true);
     try {
-      setMsgs((m) => [...m, { role: "student", text }, { role: "assistant", text: "" }]);
+      const wrapped = maybeWrapMath(text);
+      setMsgs((m) => [...m, { role: "student", text: wrapped }, { role: "assistant", text: "" }]);
       setInput("");
-      await api.streamMessage("/api/message", { sessionId: active.sessionId, text }, { onDelta: appendDelta });
+      await api.streamMessage("/api/message", { sessionId: active.sessionId, text: wrapped }, { onDelta: appendDelta });
     } finally {
       setBusy(false);
     }
@@ -113,29 +116,24 @@ export function Review() {
           )}
           <div ref={endRef} />
         </div>
-        <div className="composer">
-          <textarea
-            value={input}
-            disabled={busy}
-            placeholder="重新解这道题…"
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-          />
-          <div className="actions">
-            <button onClick={() => send(input)} disabled={busy || !input.trim()}>
-              发送
-            </button>
-            <button onClick={grade} disabled={busy || !!result}>
-              完成评分
-            </button>
-            {result && <button onClick={finish}>下一题</button>}
-          </div>
-        </div>
+        <Composer
+          value={input}
+          onChange={setInput}
+          onSend={() => send(input)}
+          busy={busy}
+          placeholder="重新解这道题…（公式可用 ^ _ / sqrt 写法，下方实时预览）"
+          actions={
+            <>
+              <button onClick={() => send(input)} disabled={busy || !input.trim()}>
+                发送
+              </button>
+              <button onClick={grade} disabled={busy || !!result}>
+                完成评分
+              </button>
+              {result && <button onClick={finish}>下一题</button>}
+            </>
+          }
+        />
       </div>
     </div>
   );

@@ -293,6 +293,87 @@ html, body, #root {
   font-size: 15px;
   font-family: inherit;
 }
+
+/* 公式工具栏 */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.toolbar button {
+  min-width: 30px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #2c313d;
+  background: #1b2030;
+  color: #cfd6e4;
+  font-size: 14px;
+  cursor: pointer;
+}
+.toolbar button:hover:not(:disabled) {
+  background: #2a3142;
+}
+.toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 实时预览 */
+.preview {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #fafafa;
+  color: #1a1a1a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+}
+.preview-tag {
+  font-size: 11px;
+  color: #888;
+  flex-shrink: 0;
+}
+
+/* 补全下拉 */
+.ta-wrap {
+  position: relative;
+}
+.completion {
+  position: absolute;
+  left: 8px;
+  bottom: 100%;
+  margin: 0 0 4px;
+  padding: 4px;
+  list-style: none;
+  background: #11141c;
+  border: 1px solid #2c313d;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  min-width: 120px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.completion li {
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #cfd6e4;
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+}
+.completion li.on {
+  background: #2f6fed;
+  color: #fff;
+}
+
+/* 学生气泡内的公式（白底气泡里 KaTeX 用深色） */
+.bubble.student.md .katex {
+  color: #fff;
+}
 .composer .actions {
   display: flex;
   gap: 8px;
