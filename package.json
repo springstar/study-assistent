@@ -1,0 +1,23 @@
+{
+  "name": "study-assistent",
+  "version": "1.0.0",
+  "main": "src/cli.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types --experimental-sqlite src/cli.ts",
+    "review": "node --experimental-strip-types --experimental-sqlite src/review.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --experimental-sqlite --test src/*.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.79.10",
+    "@earendil-works/pi-ai": "^0.79.10"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

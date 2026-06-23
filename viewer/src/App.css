@@ -1,0 +1,57 @@
+* {
+  box-sizing: border-box;
+}
+html, body, #root {
+  margin: 0;
+  height: 100%;
+}
+.layout {
+  display: flex;
+  height: 100vh;
+  font-family: system-ui, sans-serif;
+}
+.panel {
+  width: 320px;
+  flex-shrink: 0;
+  padding: 20px;
+  background: #1e2330;
+  color: #e8eaed;
+  overflow-y: auto;
+}
+.panel h1 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.hint {
+  font-size: 13px;
+  color: #9aa0aa;
+  margin: 0 0 16px;
+}
+.panel label {
+  display: block;
+  font-size: 14px;
+}
+.panel select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.spec {
+  margin-top: 16px;
+  padding: 12px;
+  background: #11141c;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #7fd0a0;
+  white-space: pre-wrap;
+}
+.stage {
+  flex: 1;
+  background: #f0f2f5;
+}
+.stage canvas {
+  display: block;
+}
