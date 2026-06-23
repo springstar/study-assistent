@@ -46,8 +46,16 @@ export function createTutor(): Agent {
   return agent;
 }
 
-/** 发一条 prompt（可带图片），等 Tutor 跑完，返回这一轮的助理回复全文 */
+/** 发一条 prompt（可带图片），等 Tutor 跑完，返回这一轮的助理回复全文。
+ * 出错（网络/服务）时回滚这一轮并抛出，便于调用方提示重试而不污染对话。 */
 export async function ask(agent: Agent, text: string, images?: ImageContent[]): Promise<string> {
+  const before = agent.state.messages.length;
   await agent.prompt(text, images);
-  return textOf(agent.state.messages.at(-1));
+  const last = agent.state.messages.at(-1);
+  const reply = textOf(last);
+  if ((last as any)?.stopReason === "error" || !reply.trim()) {
+    agent.state.messages = agent.state.messages.slice(0, before); // 回滚，保持可重试
+    throw new Error(agent.state.errorMessage || "助理无响应（网络或服务问题）");
+  }
+  return reply;
 }

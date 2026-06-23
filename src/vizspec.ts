@@ -1,6 +1,6 @@
-import { completeSimple } from "@earendil-works/pi-ai";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { EVAL_MODEL, model } from "./config.ts";
+import { completeWithRetry } from "./llm.ts";
 
 // 与 viewer/src/spec.ts 保持一致（两个包，无共享构建，故镜像一份）
 export type SolidKind = "cube" | "pyramid" | "prism" | "sphere";
@@ -46,9 +46,7 @@ export async function genSpec(problemText: string, images?: ImageContent[]): Pro
     messages: [{ role: "user" as const, content, timestamp: Date.now() }],
   };
   try {
-    const res = await completeSimple(model(EVAL_MODEL), context, {
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const res = await completeWithRetry(model(EVAL_MODEL), context);
     const m = textOf(res).match(/\{[\s\S]*\}/);
     if (!m) return null;
     const o = JSON.parse(m[0]);

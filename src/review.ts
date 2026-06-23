@@ -36,8 +36,13 @@ async function reviewOne(rl: readline.Interface, db: any, m: any): Promise<Outco
     : "这是我之前做错的题（见图），请你引导我重新做一遍，先问我思路，别直接给答案。";
 
   process.stdout.write("\n老师：");
-  const first = await ask(tutor, seed, images);
-  transcript.push({ role: "assistant", content: first });
+  try {
+    const first = await ask(tutor, seed, images);
+    transcript.push({ role: "assistant", content: first });
+  } catch (e) {
+    console.log(`\n⚠ 开场失败：${(e as Error).message}　跳过本题。`);
+    return "skip";
+  }
 
   while (true) {
     const input = (await rl.question("\n你：")).trim();
@@ -46,13 +51,19 @@ async function reviewOne(rl: readline.Interface, db: any, m: any): Promise<Outco
     if (input === "/skip") return "skip";
     if (input === "/done") break;
 
-    transcript.push({ role: "student", content: input });
     const promptText = pendingGaps.length
       ? `${input}\n\n[系统给老师的私下提示，勿告诉学生：学生仍有缺口——${pendingGaps.join("；")}。围绕最关键一点引导，不要点破。]`
       : input;
 
     process.stdout.write("\n老师：");
-    const reply = await ask(tutor, promptText);
+    let reply: string;
+    try {
+      reply = await ask(tutor, promptText);
+    } catch (e) {
+      console.log(`\n⚠ 出错：${(e as Error).message}　请重发刚才那句。`);
+      continue;
+    }
+    transcript.push({ role: "student", content: input });
     transcript.push({ role: "assistant", content: reply });
 
     lastVerdict = await evaluate(transcript);

@@ -2,11 +2,11 @@ import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { completeSimple } from "@earendil-works/pi-ai";
 import { openDb, createSession, saveTurn, saveMistake, getSimilar } from "./db.ts";
 import { createTutor, ask, loadImage } from "./tutor.ts";
 import { evaluate, type Turn } from "./evaluator.ts";
 import { genSpec } from "./vizspec.ts";
+import { completeWithRetry } from "./llm.ts";
 import { EVAL_MODEL, model, ROOT } from "./config.ts";
 
 const UNDERSTOOD_CONFIDENCE = 0.7;
@@ -18,7 +18,12 @@ async function readProblem(rl: readline.Interface): Promise<{ text: string; imag
   while (true) {
     const line = await rl.question("");
     const trimmed = line.trim();
-    if (trimmed === "/go") break;
+    if (trimmed === "/go") {
+      // 空输入校验：既无文字也无图片，不能开始
+      if (lines.join("").trim() || imagePath) break;
+      console.log("还没有题目内容。请粘贴题目文字，或用 /img <路径> 附图，再 /go。");
+      continue;
+    }
     if (trimmed.startsWith("/img ")) {
       imagePath = trimmed.slice(5).trim();
       continue;
@@ -42,9 +47,7 @@ async function summarizeMistake(transcript: Turn[]) {
       `解法: (最终解法要点，一行写完)`,
     messages: [{ role: "user" as const, content: dialog, timestamp: Date.now() }],
   };
-  const res = await completeSimple(model(EVAL_MODEL), context, {
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
+  const res = await completeWithRetry(model(EVAL_MODEL), context);
   const text = (res.content as any[]).filter((c) => c.type === "text").map((c) => c.text).join("");
   const grab = (label: string): string => {
     const m = text.match(new RegExp(`^\\s*${label}\\s*[:：]\\s*(.+)$`, "m"));
@@ -83,8 +86,21 @@ async function main() {
   transcript.push({ role: "student", content: problemForLog });
 
   process.stdout.write("\n老师：");
-  const images = imagePath ? [loadImage(imagePath)] : undefined;
-  const firstReply = await ask(tutor, problem || "请看图片里的题目。", images);
+  let images;
+  try {
+    images = imagePath ? [loadImage(imagePath)] : undefined;
+  } catch (e) {
+    console.error(`\n读图失败：${(e as Error).message}`);
+    process.exit(1);
+  }
+  let firstReply: string;
+  try {
+    firstReply = await ask(tutor, problem || "请看图片里的题目。", images);
+  } catch (e) {
+    console.error(`\n开场失败：${(e as Error).message}\n请检查网络/服务后重试。`);
+    db.close();
+    process.exit(1);
+  }
   saveTurn(db, sessionId, "assistant", firstReply);
   transcript.push({ role: "assistant", content: firstReply });
   console.log("\n\n（命令：/done 归档退出  /quit 直接退  /similar 出巩固题）\n");
@@ -116,15 +132,16 @@ async function main() {
     }
     if (input === "/similar") {
       process.stdout.write("\n老师：");
-      const reply = await ask(tutor, "学生确认已理解，请出一道同型巩固题，仍然不要直接给解答。");
-      saveTurn(db, sessionId, "assistant", reply);
-      transcript.push({ role: "assistant", content: reply });
+      try {
+        const reply = await ask(tutor, "学生确认已理解，请出一道同型巩固题，仍然不要直接给解答。");
+        saveTurn(db, sessionId, "assistant", reply);
+        transcript.push({ role: "assistant", content: reply });
+      } catch (e) {
+        console.log(`\n⚠ 出题失败：${(e as Error).message}　请再试一次。`);
+      }
       console.log();
       continue;
     }
-
-    saveTurn(db, sessionId, "student", input);
-    transcript.push({ role: "student", content: input });
 
     // 把上一轮评估的缺口作为给老师的私下提示注入（不入库、不展示给学生）
     const promptText = pendingGaps.length
@@ -132,7 +149,17 @@ async function main() {
       : input;
 
     process.stdout.write("\n老师：");
-    const reply = await ask(tutor, promptText);
+    let reply: string;
+    try {
+      reply = await ask(tutor, promptText);
+    } catch (e) {
+      // 网络/服务出错：不崩、不丢上下文，提示学生重发这一句
+      console.log(`\n⚠ 出错：${(e as Error).message}　请重发刚才那句。`);
+      continue;
+    }
+    // 成功后才落库，保持 transcript 与 DB 一致、便于重试
+    saveTurn(db, sessionId, "student", input);
+    transcript.push({ role: "student", content: input });
     saveTurn(db, sessionId, "assistant", reply);
     transcript.push({ role: "assistant", content: reply });
 

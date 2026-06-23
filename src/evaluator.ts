@@ -1,5 +1,5 @@
-import { completeSimple } from "@earendil-works/pi-ai";
 import { EVAL_MODEL, model } from "./config.ts";
+import { completeWithRetry } from "./llm.ts";
 
 export type Verdict = {
   understood: boolean;
@@ -50,14 +50,13 @@ function textOf(msg: any): string {
 
 export async function evaluate(transcript: Turn[]): Promise<Verdict> {
   const m = model(EVAL_MODEL);
-  const apiKey = process.env.ANTHROPIC_API_KEY;
   const context = {
     systemPrompt: SYSTEM,
     messages: [{ role: "user" as const, content: buildPrompt(transcript), timestamp: Date.now() }],
   };
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await completeSimple(m, context, { apiKey });
+    const res = await completeWithRetry(m, context);
     const verdict = parseVerdict(textOf(res));
     if (verdict) return verdict;
   }

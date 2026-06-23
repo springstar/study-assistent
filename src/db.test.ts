@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { openDb, createSession, saveTurn, saveMistake, getSimilar, getDueMistakes, updateSchedule, getMistakes, getStats } from "./db.ts";
 import { parseVerdict } from "./evaluator.ts";
 import { sm2, FRESH } from "./sm2.ts";
+import { retry } from "./llm.ts";
 
 test("db: session/turn/mistake 往返 + getSimilar 按题型过滤", () => {
   const db = openDb(":memory:");
@@ -116,4 +117,43 @@ test("db: getMistakes 过滤 + getStats 聚合", () => {
   assert.equal(dao.count, 2);
   assert.equal(dao.unmastered, 1);
   db.close();
+});
+
+test("retry: 失败几次后成功", async () => {
+  let n = 0;
+  const r = await retry(
+    async () => {
+      n++;
+      if (n < 3) throw new Error("瞬时");
+      return "ok";
+    },
+    (v) => v === "ok",
+    { tries: 5, delayMs: 0 },
+  );
+  assert.equal(r, "ok");
+  assert.equal(n, 3);
+});
+
+test("retry: 始终非 ok → 返回最后结果（降级，不抛）", async () => {
+  let n = 0;
+  const r = await retry(
+    async () => `bad${++n}`,
+    (v) => v === "good",
+    { tries: 3, delayMs: 0 },
+  );
+  assert.equal(r, "bad3"); // 返回最后一次，让调用方降级解析
+  assert.equal(n, 3);
+});
+
+test("retry: 每次都抛 → 抛最后的错误", async () => {
+  await assert.rejects(
+    retry(
+      async () => {
+        throw new Error("一直挂");
+      },
+      () => true,
+      { tries: 2, delayMs: 0 },
+    ),
+    /一直挂/,
+  );
 });
