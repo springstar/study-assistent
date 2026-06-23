@@ -11,6 +11,12 @@ export const SUBJECTS: Record<string, SubjectConfig> = {
     problemTypes: ["新定义", "数列", "概率统计", "导数", "解析几何", "立体几何", "开放题"],
     viz: true,
   },
+  物理: {
+    skillDir: "physics-tutor",
+    // 福建/浙江/江苏/北京等省自主命题，题型按模块归一
+    problemTypes: ["力学综合", "运动图像", "电磁场", "电磁感应", "实验", "近代物理", "概念多选"],
+    viz: false, // genSpec 目前是数学(立体/函数)专用；物理可视化(v-t图等)留作后续
+  },
 };
 
 export const DEFAULT_SUBJECT = "数学";

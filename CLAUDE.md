@@ -56,9 +56,10 @@ mistakes(id, session_id, core_ability, problem_type, block_point,
 ## Skills 与多科目
 
 - `skills/math-tutor/SKILL.md` — 数学引导，锚定 2026 新课标一卷真实题型（新定义压轴、多想少算、文化情境数列等）。
+- `skills/physics-tutor/SKILL.md` — 物理引导，锚定 2026 新高考物理（福建/浙江/江苏/北京等省自主命题）：力学综合/电磁/图像/实验，重过程与模型、反套路。viz=false（genSpec 暂数学专用，物理可视化如 v-t 图留后续）。
 - `src/subjects.ts` 是科目注册表（单一事实源）：`{skillDir, problemTypes, viz}`。tutor 按科目加载 `skills/<skillDir>/SKILL.md`；`viz` 门控 genSpec；`problemTypes` 喂给错题提炼 prompt。
 - **加新科目 = 注册表加一条 + 放 `skills/<skillDir>/SKILL.md`**（锚定该科真题）。未支持的科目输入会回退到 `DEFAULT_SUBJECT` 并提示。
-- 当前只有数学；物理/英语等后续按上面方式扩，复用同一引导状态机。
+- 当前支持：数学、物理。
 
 ## 实现顺序与进度
 

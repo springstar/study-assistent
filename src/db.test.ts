@@ -162,10 +162,15 @@ test("retry: 每次都抛 → 抛最后的错误", async () => {
 test("subjects: resolveSubject 归一 + 注册表完整", () => {
   assert.equal(resolveSubject("数学"), "数学");
   assert.equal(resolveSubject(" 数学 "), "数学"); // trim
-  assert.equal(resolveSubject("物理"), null); // 未支持
+  assert.equal(resolveSubject("物理"), "物理"); // 已支持
+  assert.equal(resolveSubject("化学"), null); // 未支持
   assert.equal(DEFAULT_SUBJECT, "数学");
   const m = SUBJECTS["数学"];
   assert.equal(m.skillDir, "math-tutor");
   assert.ok(m.viz);
   assert.ok(m.problemTypes.includes("导数"));
+  const p = SUBJECTS["物理"];
+  assert.equal(p.skillDir, "physics-tutor");
+  assert.equal(p.viz, false);
+  assert.ok(p.problemTypes.includes("电磁感应"));
 });
