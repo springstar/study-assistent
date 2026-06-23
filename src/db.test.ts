@@ -163,7 +163,8 @@ test("subjects: resolveSubject 归一 + 注册表完整", () => {
   assert.equal(resolveSubject("数学"), "数学");
   assert.equal(resolveSubject(" 数学 "), "数学"); // trim
   assert.equal(resolveSubject("物理"), "物理"); // 已支持
-  assert.equal(resolveSubject("化学"), null); // 未支持
+  assert.equal(resolveSubject("化学"), "化学"); // 已支持
+  assert.equal(resolveSubject("生物"), null); // 未支持
   assert.equal(DEFAULT_SUBJECT, "数学");
   const m = SUBJECTS["数学"];
   assert.equal(m.skillDir, "math-tutor");
@@ -173,4 +174,8 @@ test("subjects: resolveSubject 归一 + 注册表完整", () => {
   assert.equal(p.skillDir, "physics-tutor");
   assert.equal(p.viz, true);
   assert.ok(p.problemTypes.includes("电磁感应"));
+  const c = SUBJECTS["化学"];
+  assert.equal(c.skillDir, "chem-tutor");
+  assert.equal(c.viz, false);
+  assert.ok(c.problemTypes.includes("电化学"));
 });

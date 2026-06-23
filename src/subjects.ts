@@ -17,6 +17,12 @@ export const SUBJECTS: Record<string, SubjectConfig> = {
     problemTypes: ["力学综合", "运动图像", "电磁场", "电磁感应", "实验", "近代物理", "概念多选"],
     viz: true, // 受力图 / 运动图像
   },
+  化学: {
+    skillDir: "chem-tutor",
+    // 与物理同为省自主命题（福建/浙江/江苏/北京等）
+    problemTypes: ["反应原理", "电化学", "化学平衡", "工艺流程", "有机推断", "物质结构", "化学实验", "离子反应"],
+    viz: false, // 化学可视化(分子3D/能量图/滴定曲线)需专门 spec，留后续
+  },
 };
 
 export const DEFAULT_SUBJECT = "数学";
