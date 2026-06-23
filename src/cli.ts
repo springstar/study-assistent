@@ -1,11 +1,13 @@
 import * as readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { completeSimple } from "@earendil-works/pi-ai";
 import { openDb, createSession, saveTurn, saveMistake, getSimilar } from "./db.ts";
 import { createTutor, ask, loadImage } from "./tutor.ts";
 import { evaluate, type Turn } from "./evaluator.ts";
-import { EVAL_MODEL, model } from "./config.ts";
+import { genSpec } from "./vizspec.ts";
+import { EVAL_MODEL, model, ROOT } from "./config.ts";
 
 const UNDERSTOOD_CONFIDENCE = 0.7;
 
@@ -86,6 +88,14 @@ async function main() {
   saveTurn(db, sessionId, "assistant", firstReply);
   transcript.push({ role: "assistant", content: firstReply });
   console.log("\n\n（命令：/done 归档退出  /quit 直接退  /similar 出巩固题）\n");
+
+  // 几何/函数题自动生成可视化 spec，写给 viewer
+  const spec = await genSpec(problem, images);
+  if (spec) {
+    const specPath = join(ROOT, "viewer", "public", "spec.json");
+    writeFileSync(specPath, JSON.stringify(spec, null, 2));
+    console.log(`📐 已生成可视化（${spec.kind === "solid" ? spec.solid : "函数图"}）。在 viewer 里刷新即可查看。\n`);
+  }
 
   async function archive() {
     console.log("\n正在归档错题…");

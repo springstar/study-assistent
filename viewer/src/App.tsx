@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Viz } from "./Viz.tsx";
 import type { Spec } from "./spec.ts";
 import "./App.css";
@@ -18,9 +18,27 @@ const PRESETS: { name: string; spec: Spec }[] = [
   },
 ];
 
+function isSpec(o: unknown): o is Spec {
+  const s = o as Spec;
+  return s?.kind === "solid" || s?.kind === "function";
+}
+
 export default function App() {
   const [i, setI] = useState(0);
-  const spec = PRESETS[i].spec;
+  const [current, setCurrent] = useState<Spec | null>(null);
+
+  // Tutor 生成的当前题目 spec（CLI 写到 viewer/public/spec.json）
+  useEffect(() => {
+    fetch("/spec.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (isSpec(s)) setCurrent(s);
+      })
+      .catch(() => {});
+  }, []);
+
+  const list = current ? [{ name: "📍 当前题目（来自 Tutor）", spec: current }, ...PRESETS] : PRESETS;
+  const spec = list[i].spec;
 
   return (
     <div className="layout">
@@ -30,7 +48,7 @@ export default function App() {
         <label>
           选择题目：
           <select value={i} onChange={(e) => setI(Number(e.target.value))}>
-            {PRESETS.map((p, idx) => (
+            {list.map((p, idx) => (
               <option key={idx} value={idx}>
                 {p.name}
               </option>
@@ -40,7 +58,7 @@ export default function App() {
         <pre className="spec">{JSON.stringify(spec, null, 2)}</pre>
       </aside>
       <main className="stage">
-        <Viz key={i} spec={spec} />
+        <Viz key={`${i}-${current ? "c" : "n"}`} spec={spec} />
       </main>
     </div>
   );
