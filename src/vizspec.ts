@@ -5,11 +5,13 @@ import { completeWithRetry } from "./llm.ts";
 // 与 viewer/src/spec.ts 保持一致（两个包，无共享构建，故镜像一份）
 export type SolidKind = "cube" | "pyramid" | "prism" | "sphere";
 export type Force = { label: string; angleDeg: number; mag?: number };
+export type EnergyPoint = { label: string; energy: number };
 export type Spec =
   | { kind: "solid"; solid: SolidKind; size?: number; label?: string }
   | { kind: "function"; expr: string; domain: [number, number]; tangentAt?: number; label?: string }
   | { kind: "freebody"; object: "box" | "incline"; angle?: number; forces: Force[]; label?: string }
-  | { kind: "motion"; quantity: "v" | "x" | "a"; expr: string; domain: [number, number]; label?: string };
+  | { kind: "motion"; quantity: "v" | "x" | "a"; expr: string; domain: [number, number]; label?: string }
+  | { kind: "energy"; points: EnergyPoint[]; label?: string };
 
 const SOLIDS: SolidKind[] = ["cube", "pyramid", "prism", "sphere"];
 
@@ -26,6 +28,11 @@ const PROMPTS: Record<string, string> = {
 - 运动图像（匀变速/振动等，量关于时间t）：{"kind":"motion","quantity":"v 或 x 或 a","expr":"用 t 写,如 2*t 或 5-3*t","domain":[0,时间上界]}
 - 其余（纯电路/抽象/无明显图）：{"kind":"none"}
 只输出一个 JSON 对象。`,
+  化学: `判断这道化学题是否适合可视化，输出严格 JSON（无 markdown、无多余文字）：
+- 反应能量图/能垒图（反应进程-能量，含过渡态、中间体、反应热）：{"kind":"energy","points":[{"label":"反应物","energy":0},{"label":"过渡态","energy":120},{"label":"中间体","energy":40},{"label":"产物","energy":-30}]}
+  按反应进程顺序列出：反应物→过渡态(能量峰)→中间体(能量谷)→...→产物；energy 为相对能量数值。
+- 其余（方程式/计算/工艺流程/无明显图）：{"kind":"none"}
+只输出一个 JSON 对象。`,
 };
 
 function valid(o: any): o is Spec {
@@ -39,6 +46,9 @@ function valid(o: any): o is Spec {
     case "freebody":
       return (o.object === "box" || o.object === "incline") && Array.isArray(o.forces) && o.forces.length > 0 &&
         o.forces.every((f: any) => typeof f.label === "string" && typeof f.angleDeg === "number");
+    case "energy":
+      return Array.isArray(o.points) && o.points.length >= 2 &&
+        o.points.every((p: any) => typeof p.label === "string" && typeof p.energy === "number");
     default:
       return false;
   }

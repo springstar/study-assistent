@@ -176,6 +176,6 @@ test("subjects: resolveSubject 归一 + 注册表完整", () => {
   assert.ok(p.problemTypes.includes("电磁感应"));
   const c = SUBJECTS["化学"];
   assert.equal(c.skillDir, "chem-tutor");
-  assert.equal(c.viz, false);
+  assert.equal(c.viz, true);
   assert.ok(c.problemTypes.includes("电化学"));
 });

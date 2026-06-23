@@ -33,11 +33,24 @@ const PRESETS: { name: string; spec: Spec }[] = [
     name: "匀加速 v-t 图（物理）",
     spec: { kind: "motion", quantity: "v", expr: "2 + 3*t", domain: [0, 5] },
   },
+  {
+    name: "反应能量图（化学）",
+    spec: {
+      kind: "energy",
+      points: [
+        { label: "反应物", energy: 0 },
+        { label: "过渡态", energy: 120 },
+        { label: "中间体", energy: 40 },
+        { label: "过渡态2", energy: 95 },
+        { label: "产物", energy: -30 },
+      ],
+    },
+  },
 ];
 
 function isSpec(o: unknown): o is Spec {
   const k = (o as Spec)?.kind;
-  return k === "solid" || k === "function" || k === "freebody" || k === "motion";
+  return k === "solid" || k === "function" || k === "freebody" || k === "motion" || k === "energy";
 }
 
 export default function App() {
