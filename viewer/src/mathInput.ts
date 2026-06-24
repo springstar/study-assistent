@@ -17,8 +17,8 @@ export function toLatex(src: string): string {
 
   // (a)/(b) → \frac{a}{b}
   s = s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, "\\frac{$1}{$2}");
-  // 简单 a/b（两侧是数字或单标识符，且不是已在 \frac 里）→ \frac
-  s = s.replace(/(\b[A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+\b)/g, "\\frac{$1}{$2}");
+  // 简单 a/b：两侧是数字或单标识符，且分子不是 \命令（避免 \lambda/2 被当分数）
+  s = s.replace(/(?<!\\[A-Za-z]*)\b([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+\b)/g, "\\frac{$1}{$2}");
 
   // 符号
   s = s

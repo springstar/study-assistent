@@ -3,14 +3,14 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { toLatex } from "../mathInput.ts";
 
-// 工具栏模板：label 显示，insert 插入文本（▢ 为占位光标点）
+// 工具栏模板：label 显示，insert 插入文本（▢ 为占位光标点）。
+// 希腊字母/大算符直接插 LaTeX 命令（toLatex 保留 \命令 原样）。
 const TOOLS: { label: string; insert: string }[] = [
   { label: "x²", insert: "^2" },
   { label: "xⁿ", insert: "^(▢)" },
   { label: "x₀", insert: "_(▢)" },
   { label: "√", insert: "sqrt(▢)" },
   { label: "a/b", insert: "(▢)/(▢)" },
-  { label: "π", insert: "pi" },
   { label: "≤", insert: "<=" },
   { label: "≥", insert: ">=" },
   { label: "≠", insert: "!=" },
@@ -18,15 +18,33 @@ const TOOLS: { label: string; insert: string }[] = [
   { label: "×", insert: "*" },
   { label: "∞", insert: "oo" },
   { label: "→", insert: "→" },
+  // 希腊字母
+  { label: "π", insert: "\\pi " },
+  { label: "θ", insert: "\\theta " },
+  { label: "α", insert: "\\alpha " },
+  { label: "β", insert: "\\beta " },
+  { label: "λ", insert: "\\lambda " },
+  { label: "μ", insert: "\\mu " },
+  { label: "Δ", insert: "\\Delta " },
+  { label: "Ω", insert: "\\Omega " },
+  // 大算符
+  { label: "Σ", insert: "\\sum_(▢)^(▢) " },
+  { label: "∏", insert: "\\prod_(▢)^(▢) " },
+  { label: "∫", insert: "\\int_(▢)^(▢) " },
+  { label: "lim", insert: "\\lim_(▢) " },
+  { label: "→向量", insert: "\\vec{▢}" },
 ];
 
 // 补全词典：\命令 + 函数名
 const COMPLETIONS = [
-  "\\sqrt", "\\frac", "\\pi", "\\sum", "\\int", "\\lim", "\\le", "\\ge", "\\ne",
-  "\\times", "\\div", "\\cdot", "\\infty", "\\alpha", "\\beta", "\\theta", "\\Delta",
-  "\\rightarrow", "\\in", "\\mathbb{R}",
+  "\\sqrt", "\\frac", "\\sum", "\\prod", "\\int", "\\lim", "\\vec",
+  "\\le", "\\ge", "\\ne", "\\approx", "\\times", "\\div", "\\cdot", "\\pm", "\\infty",
+  "\\pi", "\\theta", "\\alpha", "\\beta", "\\gamma", "\\delta", "\\Delta", "\\lambda",
+  "\\mu", "\\sigma", "\\Sigma", "\\omega", "\\Omega", "\\phi", "\\rho",
+  "\\rightarrow", "\\Rightarrow", "\\in", "\\notin", "\\subseteq", "\\cup", "\\cap",
+  "\\mathbb{R}", "\\leq", "\\geq", "\\neq", "\\partial", "\\nabla",
 ];
-const FUNCS = ["sin", "cos", "tan", "log", "ln", "lim"];
+const FUNCS = ["sin", "cos", "tan", "cot", "log", "ln", "lim", "exp"];
 
 export function Composer({
   value,
@@ -36,6 +54,7 @@ export function Composer({
   placeholder,
   attachment,
   actions,
+  onPasteImage,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -44,6 +63,7 @@ export function Composer({
   placeholder?: string;
   attachment?: ReactNode;
   actions?: ReactNode;
+  onPasteImage?: (file: File) => void;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [comp, setComp] = useState<{ items: string[]; sel: number; tokenStart: number } | null>(null);
@@ -137,6 +157,31 @@ export function Composer({
     }
   }
 
+  function handlePaste(e: React.ClipboardEvent) {
+    if (!onPasteImage) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.type.startsWith("image/")) {
+        const f = it.getAsFile();
+        if (f) {
+          e.preventDefault();
+          onPasteImage(f);
+          return;
+        }
+      }
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    if (!onPasteImage) return;
+    const f = e.dataTransfer?.files?.[0];
+    if (f && f.type.startsWith("image/")) {
+      e.preventDefault();
+      onPasteImage(f);
+    }
+  }
+
   return (
     <div className="composer">
       {attachment}
@@ -151,12 +196,15 @@ export function Composer({
         <textarea
           ref={taRef}
           value={value}
-          placeholder={placeholder ?? "打字描述思路即可；公式多直接拍照 📷，或用 ^ _ / sqrt 等写法（下方实时预览）"}
+          placeholder={placeholder ?? "描述思路即可；公式用 ^ _ / sqrt 写法（下方预览），或直接粘贴/拖入题目图片"}
           disabled={busy}
           onChange={(e) => {
             onChange(e.target.value);
             requestAnimationFrame(updateCompletion);
           }}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
           onKeyUp={updateCompletion}
           onClick={updateCompletion}
           onKeyDown={onKeyDown}

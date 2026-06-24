@@ -152,6 +152,7 @@ export function Chat() {
           onChange={setInput}
           onSend={() => send(input)}
           busy={busy}
+          onPasteImage={pickImage}
           attachment={
             image && (
               <div className="attach">
