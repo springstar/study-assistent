@@ -74,7 +74,7 @@ export function FunctionPlot({
 
   return (
     <Canvas orthographic camera={{ position: [0, 0, 10], zoom: 56 }}>
-      <color attach="background" args={["#fafafa"]} />
+      <color attach="background" args={["#ffffff"]} />
       {/* 坐标轴 */}
       <Line points={[[axes.x0, axes.zY, 0], [axes.x1, axes.zY, 0]]} color="#999" lineWidth={1} />
       <Line points={[[axes.zX, axes.y0, 0], [axes.zX, axes.y1, 0]]} color="#999" lineWidth={1} />

@@ -31,7 +31,7 @@ export function EnergyDiagram({ points }: { points: EnergyPoint[] }) {
 
   return (
     <Canvas orthographic camera={{ position: [cx, cy, 10], zoom }}>
-      <color attach="background" args={["#fafafa"]} />
+      <color attach="background" args={["#ffffff"]} />
       {/* 坐标轴 */}
       <Line points={[[0, -0.5, 0], [10.3, -0.5, 0]]} color="#999" lineWidth={1} />
       <Line points={[[0, -0.5, 0], [0, 6.6, 0]]} color="#999" lineWidth={1} />

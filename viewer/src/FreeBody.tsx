@@ -29,7 +29,7 @@ export function FreeBody({
 }) {
   return (
     <Canvas orthographic camera={{ position: [0, 0, 10], zoom: 80 }}>
-      <color attach="background" args={["#fafafa"]} />
+      <color attach="background" args={["#ffffff"]} />
 
       {/* 斜面：过原点的斜线 + 水平地面，给受力一个情景 */}
       {object === "incline" && (
