@@ -142,7 +142,37 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "P
 .composer .actions button:not(:first-child) { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
 .composer .actions button:disabled { opacity: .45; cursor: not-allowed; }
 
-/* 可视化面板：按需显示，无 spec 不占位 */
+/* 对话大纲侧栏 */
+.outline-panel {
+  width: 200px; flex-shrink: 0; border-left: 1px solid var(--border);
+  background: var(--surface); display: flex; flex-direction: column;
+}
+.outline-head {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+}
+.outline-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.outline-item {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 8px 10px; border: none; border-radius: 8px; background: transparent;
+  cursor: pointer; transition: background .12s;
+}
+.outline-item:hover { background: var(--surface-2); }
+.outline-tag {
+  font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 5px; align-self: flex-start;
+}
+.outline-tag.t-原题 { background: #e7f5ff; color: #1971c2; }
+.outline-tag.t-卡点 { background: #fff4e6; color: #d9480f; }
+.outline-tag.t-揭示解法 { background: #f3f0ff; color: #5f3dc4; }
+.outline-tag.t-巩固题 { background: #e6fcf5; color: #0ca678; }
+.outline-tag.t-已理解 { background: #ebfbee; color: #2b8a3e; }
+.outline-summary { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 大纲跳转高亮 */
+.msg-highlight > div {
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 16px rgba(66,99,235,.2) !important;
+  transition: box-shadow .3s;
+}
 .viz-panel {
   width: 420px; flex-shrink: 0; border-left: 1px solid var(--border);
   display: flex; flex-direction: column; background: var(--surface);

@@ -7,7 +7,18 @@ import { maybeWrapMath } from "../mathInput.ts";
 import type { Spec } from "../spec.ts";
 import * as api from "../api.ts";
 
-type Msg = { role: "student" | "assistant" | "system"; text: string };
+type Msg = {
+  id: string;
+  role: "student" | "assistant" | "system";
+  text: string;
+  tag?: string; // 大纲节点标签：原题/卡点/揭示解法/巩固题/已理解
+  summary?: string; // 大纲摘要
+};
+
+let seq = 0;
+const newId = () => `m${++seq}`;
+const REVEAL_RE = /解法|答案|正确解|步骤是|这样解|完整解|参考解/;
+const summaryOf = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, 24);
 
 export function Chat() {
   const [subjects, setSubjects] = useState<string[]>(["数学", "物理", "化学"]);
@@ -21,8 +32,10 @@ export function Chat() {
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [image, setImage] = useState<{ base64: string; mime: string; name: string } | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const msgRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     api.getSubjects().then((d) => d.subjects?.length && setSubjects(d.subjects)).catch(() => {});
@@ -42,14 +55,28 @@ export function Chat() {
   const appendDelta = (t: string) =>
     setMsgs((m) => {
       const c = [...m];
-      c[c.length - 1] = { role: "assistant", text: c[c.length - 1].text + t };
+      const last = c[c.length - 1];
+      c[c.length - 1] = { ...last, text: last.text + t };
+      return c;
+    });
+
+  /** 给最后一条 assistant 消息打 tag（verdict/揭示识别用） */
+  const tagLast = (tag: string, summary?: string) =>
+    setMsgs((m) => {
+      const c = [...m];
+      for (let i = c.length - 1; i >= 0; i--) {
+        if (c[i].role === "assistant" && !c[i].tag) {
+          c[i] = { ...c[i], tag, summary: summary ?? summaryOf(c[i].text) };
+          break;
+        }
+      }
       return c;
     });
 
   function pickImage(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
-      const url = String(reader.result); // data:<mime>;base64,xxxx
+      const url = String(reader.result);
       const m = /^data:(.*?);base64,(.*)$/.exec(url);
       if (m) setImage({ mime: m[1], base64: m[2], name: file.name });
     };
@@ -62,9 +89,17 @@ export function Chat() {
     const img = image;
     try {
       const sid = await ensureSession();
-      const wrapped = maybeWrapMath(text); // 含数学迹象的转成 $...$ LaTeX 发给老师
+      const wrapped = maybeWrapMath(text);
       const shown = text || (img ? `[图片] ${img.name}` : "");
-      setMsgs((m) => [...m, { role: "student", text: wrapped || shown }, { role: "assistant", text: "" }]);
+      const isFirst = !started;
+      const studentMsg: Msg = {
+        id: newId(),
+        role: "student",
+        text: wrapped || shown,
+        tag: isFirst ? "原题" : undefined,
+        summary: isFirst ? summaryOf(shown) : undefined,
+      };
+      setMsgs((m) => [...m, studentMsg, { id: newId(), role: "assistant", text: "" }]);
       setInput("");
       setImage(null);
       await api.streamMessage(
@@ -72,11 +107,25 @@ export function Chat() {
         { sessionId: sid, text: wrapped, imageBase64: img?.base64, imageMime: img?.mime },
         {
           onDelta: appendDelta,
-          onVerdict: setVerdict,
+          onVerdict: (v) => {
+            setVerdict(v);
+            tagLast(v.understood ? "已理解" : "卡点", v.understood ? undefined : v.gaps[0]);
+          },
           onSpec: (s) => setSpec(s),
-          onError: (msg) => setMsgs((m) => [...m, { role: "system", text: "⚠ " + msg }]),
+          onError: (msg) => setMsgs((m) => [...m, { id: newId(), role: "system", text: "⚠ " + msg }]),
         },
       );
+      // 揭示解法识别（流式结束后检查最后 assistant 文本）
+      setMsgs((m) => {
+        const c = [...m];
+        for (let i = c.length - 1; i >= 0; i--) {
+          if (c[i].role === "assistant" && !c[i].tag && REVEAL_RE.test(c[i].text)) {
+            c[i] = { ...c[i], tag: "揭示解法", summary: summaryOf(c[i].text) };
+            break;
+          }
+        }
+        return c;
+      });
       setStarted(true);
     } finally {
       setBusy(false);
@@ -87,7 +136,7 @@ export function Chat() {
     if (busy || !sessionId) return;
     setBusy(true);
     try {
-      setMsgs((m) => [...m, { role: "assistant", text: "" }]);
+      setMsgs((m) => [...m, { id: newId(), role: "assistant", text: "", tag: "巩固题", summary: "同型巩固题" }]);
       await api.streamMessage("/api/similar", { sessionId }, { onDelta: appendDelta });
     } finally {
       setBusy(false);
@@ -99,7 +148,7 @@ export function Chat() {
     setBusy(true);
     try {
       const r = await api.archive(sessionId);
-      setMsgs((m) => [...m, { role: "system", text: `✓ 已记入错题库 · 类型 ${r.problemType} · 卡点 ${r.blockPoint}` }]);
+      setMsgs((m) => [...m, { id: newId(), role: "system", text: `✓ 已记入错题库 · 类型 ${r.problemType} · 卡点 ${r.blockPoint}` }]);
     } finally {
       setBusy(false);
     }
@@ -112,6 +161,17 @@ export function Chat() {
     setSpec(null);
     setStarted(false);
   }
+
+  function jumpTo(id: string) {
+    const el = msgRefs.current.get(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightId(id);
+      setTimeout(() => setHighlightId(null), 1500);
+    }
+  }
+
+  const outline = msgs.filter((m) => m.tag);
 
   return (
     <div className="chat">
@@ -140,8 +200,17 @@ export function Chat() {
 
         <div className="messages">
           {msgs.length === 0 && <div className="empty">发一道{subject}题，老师会引导你一步步想（不直接给答案）。</div>}
-          {msgs.map((m, i) => (
-            <MessageBubble key={i} role={m.role} text={m.text} />
+          {msgs.map((m) => (
+            <div
+              key={m.id}
+              ref={(el) => {
+                if (el) msgRefs.current.set(m.id, el);
+                else msgRefs.current.delete(m.id);
+              }}
+              className={highlightId === m.id ? "msg-highlight" : undefined}
+            >
+              <MessageBubble role={m.role} text={m.text} />
+            </div>
           ))}
           {verdict && (
             <div className="verdict">
@@ -190,6 +259,20 @@ export function Chat() {
           }
         />
       </div>
+
+      {outline.length >= 2 && (
+        <aside className="outline-panel">
+          <div className="outline-head">大纲</div>
+          <div className="outline-list">
+            {outline.map((m) => (
+              <button key={m.id} className="outline-item" onClick={() => jumpTo(m.id)}>
+                <span className={`outline-tag t-${m.tag}`}>{m.tag}</span>
+                <span className="outline-summary">{m.summary || ""}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
 
       {spec && (
         <aside className="viz-panel">
