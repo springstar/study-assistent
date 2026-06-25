@@ -11,6 +11,7 @@ type Msg = { role: "student" | "assistant" | "system"; text: string };
 
 export function Chat() {
   const [subjects, setSubjects] = useState<string[]>(["数学", "物理", "化学"]);
+  const [status, setStatus] = useState<{ tutor: string; evaluator: string } | null>(null);
   const [subject, setSubject] = useState("数学");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -25,6 +26,7 @@ export function Chat() {
 
   useEffect(() => {
     api.getSubjects().then((d) => d.subjects?.length && setSubjects(d.subjects)).catch(() => {});
+    api.getStatus().then(setStatus).catch(() => {});
   }, []);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -127,7 +129,10 @@ export function Chat() {
               <option key={s}>{s}</option>
             ))}
           </select>
-          <span className="hint">{started ? "辅导中" : "选科目，发第一道题开始"}</span>
+          <span className="hint">
+            {started ? "辅导中" : "选科目，发第一道题开始"}
+            {status && <span className="model-tag">引导 {status.tutor} · 评估 {status.evaluator}</span>}
+          </span>
           <button onClick={reset} disabled={busy}>
             新会话
           </button>

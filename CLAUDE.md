@@ -111,3 +111,13 @@ CLI（npm start/review/mistakes）仍可用，与 server 共用同一 data.db（
 ## 命题数据原则
 
 skill 必须锚定**真实真题**，不要凭想象编"预测题型"。提炼题型时先查/核对真题（官方教育考试院评析 + 多源交叉），自媒体复原题干的数值细节存疑要标注。
+
+## 数据安全（铁律）
+
+**永远不要 `rm` 真实 `data.db`**——它是用户的真实历史会话与错题库，删除不可恢复（git 不跟踪 *.db，无备份）。
+
+- 测试/调试**必须用独立 DB**：内存库 `:memory:`（如 `openDb(":memory:")`）或临时文件 `/tmp/test-*.db`，用完即删。
+- 排查问题时若需清状态，**新建临时 data.db 路径**（如 `DB_PATH=/tmp/x.db npm run server`），绝不碰项目根的 `data.db`。
+- 任何 `rm -f data.db` 或 `rm *.db` 类命令，执行前必须确认目标不是用户数据。
+- e2e 冒烟脚本若起 server，用独立临时 db 路径，跑完清理临时文件，不动 data.db。
+

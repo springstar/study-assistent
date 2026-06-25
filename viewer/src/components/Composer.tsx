@@ -8,7 +8,7 @@ import { toLatex } from "../mathInput.ts";
 const TOOLS: { label: string; insert: string }[] = [
   { label: "x²", insert: "^2" },
   { label: "xⁿ", insert: "^(▢)" },
-  { label: "x₀", insert: "_(▢)" },
+  { label: "xₙ", insert: "_(▢)" },
   { label: "√", insert: "sqrt(▢)" },
   { label: "a/b", insert: "(▢)/(▢)" },
   { label: "≤", insert: "<=" },
@@ -187,7 +187,13 @@ export function Composer({
       {attachment}
       <div className="toolbar">
         {TOOLS.map((t) => (
-          <button key={t.label} type="button" disabled={busy} onClick={() => insertAtCursor(t.insert)}>
+          <button
+            key={t.label}
+            type="button"
+            disabled={busy}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => insertAtCursor(t.insert)}
+          >
             {t.label}
           </button>
         ))}

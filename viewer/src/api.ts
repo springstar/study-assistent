@@ -13,6 +13,8 @@ async function postJson(path: string, body: unknown) {
 }
 
 export const getSubjects = (): Promise<{ subjects: string[] }> => fetch("/api/subjects").then((r) => r.json());
+export const getStatus = (): Promise<{ tutor: string; evaluator: string }> =>
+  fetch("/api/status").then((r) => r.json());
 export const createSession = (subject: string): Promise<{ sessionId: string; subject: string }> =>
   postJson("/api/session", { subject });
 export const archive = (sessionId: string) => postJson("/api/archive", { sessionId });

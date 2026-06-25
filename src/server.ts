@@ -14,7 +14,7 @@ import { genSpec } from "./vizspec.ts";
 import { summarizeMistake, toQuality } from "./archive.ts";
 import { sm2, MASTERED_INTERVAL } from "./sm2.ts";
 import { SUBJECTS, resolveSubject, DEFAULT_SUBJECT, supportedSubjects } from "./subjects.ts";
-import { ROOT } from "./config.ts";
+import { ROOT, TUTOR_MODEL, EVAL_MODEL } from "./config.ts";
 
 const PORT = Number(process.env.PORT) || 8787;
 const DIST = join(ROOT, "viewer", "dist");
@@ -75,8 +75,10 @@ async function streamTurn(
 ) {
   sseHead(res);
   const studentText = text || (images ? "[图片题目]" : "");
+  // 图片题若学生没打字，补明确指令——否则空 user 消息+图会让模型乱回
+  const effectiveText = text || (images ? "请看图片里的题目，先把你识别到的题目完整转写出来（公式用 LaTeX），问我确认对不对，确认后再开始引导。" : "");
   const promptText =
-    sess.pendingGaps.length && opts.runEval && sess.started ? text + GAP_NOTE(sess.pendingGaps) : text;
+    sess.pendingGaps.length && opts.runEval && sess.started ? effectiveText + GAP_NOTE(sess.pendingGaps) : effectiveText;
   try {
     const isFirstTurn = !sess.started;
     const reply = await ask(sess.agent, promptText, { images, onDelta: (d) => sse(res, "delta", { text: d }) });
@@ -211,6 +213,8 @@ const server = createServer(async (req, res) => {
     if (!path.startsWith("/api/")) return serveStatic(req, res);
 
     if (method === "GET" && path === "/api/subjects") return json(res, 200, { subjects: supportedSubjects() });
+    if (method === "GET" && path === "/api/status")
+      return json(res, 200, { tutor: TUTOR_MODEL, evaluator: EVAL_MODEL });
 
     if (method === "POST" && path === "/api/session") return handleSession(res, await readJson(req));
 
