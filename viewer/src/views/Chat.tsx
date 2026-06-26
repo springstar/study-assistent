@@ -13,6 +13,7 @@ type Msg = {
   text: string;
   tag?: string; // 大纲节点标签：原题/卡点/揭示解法/巩固题/已理解
   summary?: string; // 大纲摘要
+  image?: { base64: string; mime: string }; // 学生上传的图片（气泡内显示缩略图）
 };
 
 let seq = 0;
@@ -20,7 +21,13 @@ const newId = () => `m${++seq}`;
 const REVEAL_RE = /解法|答案|正确解|步骤是|这样解|完整解|参考解/;
 const summaryOf = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, 24);
 
-export function Chat() {
+export function Chat({
+  loadReq,
+  onConsumed,
+}: {
+  loadReq?: { sessionId: string; subject: string; turns: { role: "student" | "assistant"; content: string }[] } | null;
+  onConsumed?: () => void;
+}) {
   const [subjects, setSubjects] = useState<string[]>(["数学", "物理", "化学"]);
   const [status, setStatus] = useState<{ tutor: string; evaluator: string } | null>(null);
   const [subject, setSubject] = useState("数学");
@@ -41,6 +48,25 @@ export function Chat() {
     api.getSubjects().then((d) => d.subjects?.length && setSubjects(d.subjects)).catch(() => {});
     api.getStatus().then(setStatus).catch(() => {});
   }, []);
+  // 加载历史会话：灌入消息 + 复用 sessionId，可继续发消息
+  useEffect(() => {
+    if (!loadReq) return;
+    setSubject(loadReq.subject);
+    setSessionId(loadReq.sessionId);
+    setStarted(true);
+    setSpec(null);
+    setVerdict(null);
+    setMsgs(
+      loadReq.turns.map((t, i) => ({
+        id: `loaded${i}`,
+        role: t.role,
+        text: t.content,
+        tag: i === 0 && t.role === "student" ? "原题" : undefined,
+        summary: i === 0 ? summaryOf(t.content) : undefined,
+      })),
+    );
+    onConsumed?.();
+  }, [loadReq, onConsumed]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
@@ -90,7 +116,7 @@ export function Chat() {
     try {
       const sid = await ensureSession();
       const wrapped = maybeWrapMath(text);
-      const shown = text || (img ? `[图片] ${img.name}` : "");
+      const shown = text || (img ? "[图片]" : "");
       const isFirst = !started;
       const studentMsg: Msg = {
         id: newId(),
@@ -98,6 +124,7 @@ export function Chat() {
         text: wrapped || shown,
         tag: isFirst ? "原题" : undefined,
         summary: isFirst ? summaryOf(shown) : undefined,
+        image: img ? { base64: img.base64, mime: img.mime } : undefined,
       };
       setMsgs((m) => [...m, studentMsg, { id: newId(), role: "assistant", text: "" }]);
       setInput("");
@@ -209,7 +236,7 @@ export function Chat() {
               }}
               className={highlightId === m.id ? "msg-highlight" : undefined}
             >
-              <MessageBubble role={m.role} text={m.text} />
+              <MessageBubble role={m.role} text={m.text} image={m.image} />
             </div>
           ))}
           {verdict && (

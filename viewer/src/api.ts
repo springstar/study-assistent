@@ -17,6 +17,10 @@ export const getStatus = (): Promise<{ tutor: string; evaluator: string }> =>
   fetch("/api/status").then((r) => r.json());
 export const createSession = (subject: string): Promise<{ sessionId: string; subject: string }> =>
   postJson("/api/session", { subject });
+export const loadSession = (
+  sessionId: string,
+): Promise<{ sessionId: string; subject: string; turns: { role: "student" | "assistant"; content: string }[] }> =>
+  postJson("/api/session/load", { sessionId });
 export const archive = (sessionId: string) => postJson("/api/archive", { sessionId });
 export const fetchMistakes = (q: { type?: string; due?: boolean; unmastered?: boolean }) => {
   const p = new URLSearchParams();

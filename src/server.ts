@@ -8,7 +8,7 @@ import {
   openDb, createSession, saveTurn, saveMistake, getSimilar,
   getStats, getMistakes, getDueMistakes, updateSchedule, listSessions, getTurns, setSessionProblem,
 } from "./db.ts";
-import { createTutor, ask } from "./tutor.ts";
+import { createTutor, ask, buildMessagesFromTurns } from "./tutor.ts";
 import { evaluate, type Turn, type Verdict } from "./evaluator.ts";
 import { genSpec } from "./vizspec.ts";
 import { summarizeMistake, toQuality } from "./archive.ts";
@@ -138,6 +138,37 @@ async function handleSession(res: ServerResponse, body: any) {
   json(res, 200, { sessionId, subject });
 }
 
+/** 加载历史会话进内存：重建 Agent(灌历史 messages) + transcript，可继续发消息 */
+async function handleLoad(res: ServerResponse, body: any) {
+  const sessionId = body?.sessionId;
+  const s: any = db.prepare("SELECT subject FROM sessions WHERE id = ?").get(sessionId);
+  if (!s) return json(res, 404, { error: "会话不存在" });
+  const subject = resolveSubject(s.subject) ?? DEFAULT_SUBJECT;
+  const turns: any[] = getTurns(db, sessionId);
+  const agent = createTutor(subject);
+  const simpleTurns: { role: "student" | "assistant"; content: string; ts?: number }[] = turns.map((t) => ({
+    role: (t.role === "assistant" ? "assistant" : "student") as "student" | "assistant",
+    content: t.content,
+    ts: Date.parse(t.created_at),
+  }));
+  // 灌历史让 Agent 记住上下文
+  agent.state.messages = buildMessagesFromTurns(simpleTurns);
+  const transcript = simpleTurns.map((t) => ({ role: t.role, content: t.content }));
+  sessions.set(sessionId, {
+    agent,
+    transcript,
+    pendingGaps: [],
+    subject,
+    isReview: false,
+    persist: true,
+    sessionId,
+    lastVerdict: null,
+    started: true,
+    specDone: true,
+  });
+  json(res, 200, { sessionId, subject, turns: simpleTurns });
+}
+
 async function handleArchive(res: ServerResponse, body: any) {
   const sess = sessions.get(body?.sessionId);
   if (!sess) return json(res, 404, { error: "会话不存在" });
@@ -217,6 +248,7 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { tutor: TUTOR_MODEL, evaluator: EVAL_MODEL });
 
     if (method === "POST" && path === "/api/session") return handleSession(res, await readJson(req));
+    if (method === "POST" && path === "/api/session/load") return handleLoad(res, await readJson(req));
 
     if (method === "POST" && path === "/api/message") {
       const body = await readJson(req);
@@ -224,8 +256,8 @@ const server = createServer(async (req, res) => {
       if (!sess) return json(res, 404, { error: "会话不存在" });
       const isFirst = !sess.started;
       const images = imagesFrom(body);
-      // 图片题首轮是「转写确认」轮，题目未确认，先不画图；之后每轮尝试（specDone 保证只画一次）
-      const runSpec = isFirst ? !images : !sess.specDone;
+      // 每轮都尝试生成 spec（specDone 保证只画一次）。立体几何/函数题在首轮转写时即出图，帮助确认题目。
+      const runSpec = !sess.specDone;
       return streamTurn(res, sess, body?.text || "", images, {
         saveStudent: true,
         runEval: !isFirst || sess.transcript.length > 0,

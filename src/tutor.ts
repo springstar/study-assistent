@@ -32,6 +32,28 @@ export function textOf(msg: AgentMessage | undefined): string {
     .join("");
 }
 
+export type SimpleTurn = { role: "student" | "assistant"; content: string; ts?: number };
+
+/** 把 DB turns（role/content 字符串）重建为 pi-ai Message[]，灌进 Agent.state.messages 让它"记住"历史。
+ *  AssistantMessage 需补齐 api/provider/usage/stopReason 等字段（用占位值，convertToLlm 只看 role/content）。 */
+export function buildMessagesFromTurns(turns: SimpleTurn[]): any[] {
+  return turns.map((t) => {
+    if (t.role === "student") {
+      return { role: "user", content: t.content, timestamp: t.ts ?? Date.now() };
+    }
+    return {
+      role: "assistant",
+      content: [{ type: "text", text: t.content }],
+      api: "anthropic-messages",
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "end_turn",
+      timestamp: t.ts ?? Date.now(),
+    };
+  });
+}
+
 /** 按科目加载对应 skill 作 systemPrompt 建 Tutor。流式输出不在这里绑定——由 ask 的 onDelta 注入。 */
 export function createTutor(subject: string): Agent {
   const cfg = SUBJECTS[subject];

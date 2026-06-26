@@ -12,8 +12,23 @@ const VIEWS = [
   ["history", "历史"],
 ] as const;
 
+export type LoadRequest = {
+  sessionId: string;
+  subject: string;
+  turns: { role: "student" | "assistant"; content: string }[];
+};
+
 export default function App() {
   const [view, setView] = useState<string>("chat");
+  const [loadReq, setLoadReq] = useState<LoadRequest | null>(null);
+  const [, forceTick] = useState(0);
+
+  const continueSession = (req: LoadRequest) => {
+    setLoadReq(req);
+    setView("chat");
+    forceTick((n) => n + 1);
+  };
+
   return (
     <div className="app">
       <nav className="nav">
@@ -25,16 +40,14 @@ export default function App() {
         ))}
       </nav>
       <main className="view">
-        {/* 聊天/复习含活跃会话，始终挂载、用 display 切换，避免切 tab 丢失对话 */}
         <div style={{ display: view === "chat" ? "block" : "none", height: "100%" }}>
-          <Chat />
+          <Chat loadReq={loadReq} onConsumed={() => setLoadReq(null)} />
         </div>
         <div style={{ display: view === "review" ? "block" : "none", height: "100%" }}>
           <Review />
         </div>
-        {/* 纯展示页，进入时重新拉取最新数据 */}
         {view === "mistakes" && <Mistakes />}
-        {view === "history" && <History />}
+        {view === "history" && <History onContinue={continueSession} />}
       </main>
     </div>
   );

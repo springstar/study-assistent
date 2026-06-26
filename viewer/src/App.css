@@ -88,6 +88,13 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "P
   font-size: 13px; border-radius: 9px; border: 1px solid var(--border);
 }
 .bubble.md { text-align: left; }
+.bubble-img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  display: block;
+}
 .bubble.md p { margin: 0 0 8px; }
 .bubble.md p:last-child { margin-bottom: 0; }
 .bubble.md h1, .bubble.md h2, .bubble.md h3 { font-size: 15px; margin: 10px 0 6px; }
@@ -185,6 +192,13 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "P
 .viz-body { flex: 1; min-height: 0; position: relative; }
 .viz-body canvas { display: block; width: 100% !important; height: 100% !important; }
 .viz-fail { padding: 28px; color: var(--text-3); font-size: 14px; text-align: center; }
+
+/* 立体几何：2D + 3D 并排 */
+.geo-dual { display: flex; flex-direction: column; height: 100%; }
+.geo-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
+.geo-pane:last-child { border-bottom: none; }
+.geo-label { padding: 6px 12px; font-size: 12px; color: var(--text-3); background: var(--surface-2); }
+.geo-pane canvas, .geo-pane svg { flex: 1; min-height: 0; }
 
 /* 列表页 */
 .page { height: 100%; overflow-y: auto; padding: 28px 32px; max-width: 900px; }

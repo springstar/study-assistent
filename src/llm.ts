@@ -29,10 +29,19 @@ export async function retry<T>(
 }
 
 /** completeSimple + 瞬时错误（stopReason==="error"，如 403/限流/网络抖动）重试。
- * 多次仍错则返回最后的错误响应，调用方按既有解析降级（不抛）。 */
-export function completeWithRetry(model: Model<any>, context: Context): Promise<AssistantMessage> {
+ * 多次仍错则返回最后的错误响应，调用方按既有解析降级（不抛）。
+ * options 可传 maxTokens 等（默认 apiKey 从 env 取）。 */
+export function completeWithRetry(
+  model: Model<any>,
+  context: Context,
+  options: { maxTokens?: number } = {},
+): Promise<AssistantMessage> {
   return retry(
-    () => completeSimple(model, context, { apiKey: process.env.ANTHROPIC_API_KEY }),
+    () =>
+      completeSimple(model, context, {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        ...(options.maxTokens ? { maxTokens: options.maxTokens } : {}),
+      }),
     (r) => r.stopReason !== "error",
     { tries: 3 },
   );

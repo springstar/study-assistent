@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { MessageBubble } from "../components/MessageBubble.tsx";
 import * as api from "../api.ts";
+import type { LoadRequest } from "../App.tsx";
 
-export function History() {
+export function History({ onContinue }: { onContinue: (req: LoadRequest) => void }) {
   const [list, setList] = useState<any[] | null>(null);
   const [sel, setSel] = useState<any | null>(null);
   const [turns, setTurns] = useState<any[] | null>(null);
@@ -18,6 +19,11 @@ export function History() {
     setTurns(d.turns);
   }
 
+  async function continueChat(s: any) {
+    const d = await api.loadSession(s.id);
+    onContinue({ sessionId: d.sessionId, subject: d.subject, turns: d.turns });
+  }
+
   if (sel) {
     return (
       <div className="chat">
@@ -26,6 +32,9 @@ export function History() {
             <span className="hint">
               {sel.subject} · {sel.created_at?.slice(0, 16).replace("T", " ")}
             </span>
+            <button onClick={() => continueChat(sel)} disabled={turns === null}>
+              继续对话
+            </button>
             <button
               onClick={() => {
                 setSel(null);
