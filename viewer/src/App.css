@@ -17,6 +17,10 @@
   --shadow: 0 1px 3px rgba(20,30,60,.06), 0 6px 20px rgba(20,30,60,.06);
   --radius: 14px;
 }
+/* 科目主题色：学生气泡渐变 + 强调色 */
+[data-subject="数学"] { --sub-from: #f59e0b; --sub-to: #eab308; }
+[data-subject="物理"] { --sub-from: #3b82f6; --sub-to: #0ea5e9; }
+[data-subject="化学"] { --sub-from: #fb923c; --sub-to: #ef4444; }
 html, body, #root { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--text); font-family: -apple-system, "PingFang SC", system-ui, sans-serif; }
 
@@ -76,7 +80,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "P
   font-size: 15px; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
 }
 .bubble.student {
-  align-self: flex-end; background: linear-gradient(135deg, var(--primary), var(--accent));
+  align-self: flex-end; background: linear-gradient(135deg, var(--sub-from, var(--primary)), var(--sub-to, var(--accent)));
   color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 2px 8px rgba(66,99,235,.18);
 }
 .bubble.assistant {

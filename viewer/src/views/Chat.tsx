@@ -201,7 +201,7 @@ export function Chat({
   const outline = msgs.filter((m) => m.tag);
 
   return (
-    <div className="chat">
+    <div className="chat" data-subject={subject}>
       <div className="chat-main">
         <header className="chat-head">
           <select

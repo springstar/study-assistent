@@ -4,7 +4,7 @@ import * as api from "../api.ts";
 
 type Filter = { type?: string; due?: boolean; unmastered?: boolean };
 
-export function Mistakes() {
+export function Mistakes({ onContinue }: { onContinue?: (sessionId: string) => void }) {
   const [data, setData] = useState<{ stats: any; list: any[] } | null>(null);
   const [filter, setFilter] = useState<Filter>({});
 
@@ -48,7 +48,11 @@ export function Mistakes() {
       <div className="mlist">
         {list.length === 0 && <div className="empty">（无）</div>}
         {list.map((m: any) => (
-          <div key={m.id} className="mrow">
+          <div
+            key={m.id}
+            className={"mrow" + (onContinue ? " clickable" : "")}
+            onClick={onContinue ? () => onContinue(m.session_id) : undefined}
+          >
             <div className="mtop">
               <span className="tag">{m.problem_type}</span>
               {m.mastered ? <span className="mastered">★掌握</span> : null}

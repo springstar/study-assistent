@@ -29,6 +29,15 @@ export default function App() {
     forceTick((n) => n + 1);
   };
 
+  const continueById = async (sessionId: string) => {
+    const d = await (await fetch("/api/session/load", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    })).json();
+    continueSession({ sessionId: d.sessionId, subject: d.subject, turns: d.turns });
+  };
+
   return (
     <div className="app">
       <nav className="nav">
@@ -46,7 +55,7 @@ export default function App() {
         <div style={{ display: view === "review" ? "block" : "none", height: "100%" }}>
           <Review />
         </div>
-        {view === "mistakes" && <Mistakes />}
+        {view === "mistakes" && <Mistakes onContinue={continueById} />}
         {view === "history" && <History onContinue={continueSession} />}
       </main>
     </div>

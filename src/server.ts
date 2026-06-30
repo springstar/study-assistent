@@ -86,9 +86,10 @@ async function streamTurn(
       if (sess.persist) saveTurn(db, sess.sessionId, "student", studentText);
       sess.transcript.push({ role: "student", content: studentText });
     }
-    // 首轮回填题目到 session（会话先建、题目首轮才到）
+    // 首轮回填题目到 session：文字题用学生原文，图片题用老师转写(回复含识别出的题目)
     if (isFirstTurn && sess.persist && !sess.isReview) {
-      setSessionProblem(db, sess.sessionId, text, images ? "[图片]" : null);
+      const problemText = text || (images ? reply.slice(0, 500) : "");
+      setSessionProblem(db, sess.sessionId, problemText, images ? "[图片]" : null);
     }
     if (sess.persist) saveTurn(db, sess.sessionId, "assistant", reply);
     sess.transcript.push({ role: "assistant", content: reply });
